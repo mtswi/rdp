@@ -1057,7 +1057,7 @@ function getStudentRank(studentId) {
 
 function toArabicOrdinal(n) {
   const map = { 1: 'الأول', 2: 'الثاني', 3: 'الثالث', 4: 'الرابع', 5: 'الخامس', 6: 'السادس', 7: 'السابع', 8: 'الثامن', 9: 'التاسع', 10: 'العاشر' };
-  return map[n] || `المركز ${toArabicDigits(n)}`;
+  return map[n] || toArabicDigits(n);
 }
 
 function toArabicDigits(val) {

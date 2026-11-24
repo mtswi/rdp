@@ -4847,7 +4847,7 @@ function renderSingleRaporSheet(s, isLastPage, printAssets = null) {
 
           <div class="grid grid-cols-3 gap-2 border border-slate-800 rounded px-2.5 py-1.5 mb-2.5 bg-slate-50/75 text-center text-[16.5px] font-bold leading-tight">
             <div>المجموع الكلي: <span>${hasAnyScore ? toArabicDigits(totalWeighted) : '–'}</span></div>
-            <div>المعدل العام: <span${hasAnyScore && avg < kkm ? ' class="rapor-score-below-kkm"' : ''}>${hasAnyScore ? `${toArabicDigits(avg.toFixed(2))} (${escapeHtml(getPredikatArab(avg))})` : '–'}</span></div>
+            <div>المعدل العام: <span${hasAnyScore && avg < kkm ? ' class="rapor-score-below-kkm"' : ''}>${hasAnyScore ? `${toArabicDigits(avg.toFixed(2).replace('.', ','))} (${escapeHtml(getPredikatArab(avg))})` : '–'}</span></div>
             <div>الترتيب: <span class="text-emerald-800">${hasAnyScore ? toArabicOrdinal(rank) : '–'}</span> ${hasAnyScore ? `<span class="text-[13.5px] font-normal">(من ${toArabicDigits(totalStudents)})</span>` : ''}</div>
           </div>
         </div>

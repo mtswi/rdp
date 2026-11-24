@@ -1,0 +1,23 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "rdp-pesantren",
+  "main": "worker.js",
+  "compatibility_date": "2026-11-22",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": true,
+    "html_handling": "none"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "rdp-db",
+      "database_id": "6107ab3c-7b0a-4d12-8638-f900c11492af"
+    }
+  ],
+  "observability": {
+    "enabled": true
+  }
+}

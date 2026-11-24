@@ -1,0 +1,12 @@
+{
+  "name": "rdp-pesantren",
+  "version": "4.0.0",
+  "description": "Rapor Digital Pesantren (RDP) with Node.js + SQLite",
+  "main": "server.js",
+  "scripts": {
+    "start": "node --no-warnings server.js"
+  },
+  "dependencies": {
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
+  }
+}

@@ -1,0 +1,8 @@
+node_modules/
+rdp.db*
+.env
+*.log
+_tmp_*
+.wrangler/
+d1_seed.sql
+backup_*.sql

@@ -225,7 +225,8 @@ for (const colDef of [
   "watermarkColor TEXT DEFAULT 'color'",
   "watermarkSize INTEGER DEFAULT 300",
   "watermarkFontSize INTEGER DEFAULT 24",
-  "nomorSkKejuaraan TEXT DEFAULT '001/SK-KEJ/PP-WI/XII/2025'"
+  "nomorSkKejuaraan TEXT DEFAULT '001/SK-KEJ/PP-WI/XII/2025'",
+  "predikatConfig TEXT"
 ]) {
   try { db.exec(`ALTER TABLE pesantren_profile ADD COLUMN ${colDef};`); } catch (_) {}
 }
@@ -546,6 +547,65 @@ function migratePerYearData() {
 migratePerYearData();
 ensureIndexes();
 
+const DEFAULT_PREDIKAT_LABELS = ['ممتاز', 'جيد جداً', 'جيد', 'مقبول', 'ضعيف'];
+const PREDIKAT_KEYS = ['A', 'B', 'C', 'D', 'E'];
+
+function buildDefaultPredikatConfig(kkmRaw, labelsOverride = null) {
+  const kkm = Math.min(100, Math.max(0, Math.round(Number.isFinite(Number(kkmRaw)) ? Number(kkmRaw) : 75)));
+  const span = 100 - kkm;
+  const min2 = Math.min(100, Math.max(kkm, Math.round(kkm + span * 0.25)));
+  const min1 = Math.min(100, Math.max(min2, Math.round(kkm + span * 0.50)));
+  const min0 = Math.min(100, Math.max(min1, Math.round(kkm + span * 0.75)));
+  const mins = [min0, min1, min2, kkm, 0];
+  return PREDIKAT_KEYS.map((key, idx) => {
+    const customLabel = Array.isArray(labelsOverride) && labelsOverride[idx] ? String(labelsOverride[idx]).trim() : '';
+    return { key, min: mins[idx], label: customLabel || DEFAULT_PREDIKAT_LABELS[idx] };
+  });
+}
+
+function parseAndValidatePredikatConfig(raw, effectiveKkm) {
+  if (raw === null || raw === undefined || raw === '') return { ok: true, value: null };
+  let arr = raw;
+  if (typeof arr === 'string') {
+    try { arr = JSON.parse(arr); } catch (_) { return { ok: false, error: 'Format predikatConfig JSON tidak valid' }; }
+  }
+  if (!Array.isArray(arr) || arr.length !== 5) {
+    return { ok: false, error: 'Konfigurasi predikat harus terdiri dari 5 tingkat (A–E)' };
+  }
+  const kkm = Math.min(100, Math.max(0, Math.round(Number.isFinite(Number(effectiveKkm)) ? Number(effectiveKkm) : 75)));
+  const out = [];
+  for (let i = 0; i < 5; i++) {
+    const item = arr[i];
+    if (!item || typeof item !== 'object') return { ok: false, error: 'Item predikat tidak valid' };
+    const label = String(item.label ?? '').trim();
+    if (!label || label.length > 40) {
+      return { ok: false, error: `Nama predikat tingkat ${PREDIKAT_KEYS[i]} wajib diisi (maks 40 karakter)` };
+    }
+    let minVal;
+    if (i === 4) minVal = 0;
+    else if (i === 3) minVal = kkm;
+    else {
+      const n = Number(item.min);
+      if (!Number.isFinite(n) || n < 0 || n > 100) {
+        return { ok: false, error: `Batas minimal predikat tingkat ${PREDIKAT_KEYS[i]} harus angka 0–100` };
+      }
+      minVal = Math.round(n);
+    }
+    out.push({ key: PREDIKAT_KEYS[i], min: minVal, label });
+  }
+  const strictOrder = (100 - kkm) >= 3;
+  if (strictOrder) {
+    if (!(100 >= out[0].min && out[0].min > out[1].min && out[1].min > out[2].min && out[2].min > out[3].min)) {
+      return { ok: false, error: 'Batas minimal predikat A > B > C > KKM harus terurut menurun tanpa tumpang tindih' };
+    }
+  } else {
+    if (!(100 >= out[0].min && out[0].min >= out[1].min && out[1].min >= out[2].min && out[2].min >= out[3].min)) {
+      return { ok: false, error: 'Batas minimal predikat tidak valid terhadap KKM' };
+    }
+  }
+  return { ok: true, value: out };
+}
+
 function getFullState(opts = {}) {
   const omitMedia = Boolean(opts && opts.omitMedia);
   const profileSql = omitMedia
@@ -553,7 +613,7 @@ function getFullState(opts = {}) {
               kepala, kepalaArab, tahun, semester, semesterArab, kurikulum,
               kkmDefault, tanggalIso, watermarkType, watermarkText,
               watermarkOpacity, watermarkColor, watermarkSize, watermarkFontSize,
-              nomorSkKejuaraan,
+              nomorSkKejuaraan, predikatConfig,
               (length(COALESCE(logoDataUrl, '')) || ':' || substr(COALESCE(logoDataUrl, ''), 1, 24) || ':' ||
                length(COALESCE(watermarkDataUrl, '')) || ':' || substr(COALESCE(watermarkDataUrl, ''), 1, 24)) AS mediaStamp
        FROM pesantren_profile WHERE id = 1`
@@ -566,6 +626,11 @@ function getFullState(opts = {}) {
     : `${logoStr.length}:${logoStr.slice(0, 24)}:${wmStr.length}:${wmStr.slice(0, 24)}`;
   const activeTahun = profile.tahun || '2026/2027';
   const activeSemester = profile.semester || 'Ganjil';
+  const activeKkm = (profile.kkmDefault !== undefined && profile.kkmDefault !== null) ? Number(profile.kkmDefault) : 75;
+  const parsedPred = parseAndValidatePredikatConfig(profile.predikatConfig, activeKkm);
+  const effectivePredikatConfig = (parsedPred.ok && parsedPred.value)
+    ? parsedPred.value
+    : buildDefaultPredikatConfig(activeKkm);
   const classes = db.prepare('SELECT * FROM classes WHERE tahun = ? ORDER BY id ASC').all(activeTahun);
   const subjects = db.prepare('SELECT * FROM subjects ORDER BY id ASC').all().map(s => ({
     ...s,
@@ -644,10 +709,11 @@ function getFullState(opts = {}) {
       watermarkSize: Number(profile.watermarkSize || 300),
       watermarkFontSize: Number(profile.watermarkFontSize || 24),
       nomorSkKejuaraan: profile.nomorSkKejuaraan || '001/SK-KEJ/PP-WI/XII/2025',
+      predikatConfig: effectivePredikatConfig,
       mediaStamp,
       mediaOmitted: omitMedia
     },
-    bobot: { harian: 60, pas: 40, kkm: profile.kkmDefault ?? 75 },
+    bobot: { harian: 60, pas: 40, kkm: activeKkm },
     classes,
     subjects,
     teachers,
@@ -657,4 +723,4 @@ function getFullState(opts = {}) {
   };
 }
 
-module.exports = { db, DB_PATH, getFullState, hashPassword, hashPasswordAsync, verifyPassword, verifyPasswordAsync, runInTransaction };
+module.exports = { db, DB_PATH, getFullState, buildDefaultPredikatConfig, parseAndValidatePredikatConfig, hashPassword, hashPasswordAsync, verifyPassword, verifyPasswordAsync, runInTransaction };

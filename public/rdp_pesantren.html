@@ -445,7 +445,8 @@ const state = {
     watermarkColor: 'color',
     watermarkSize: 300,
     watermarkFontSize: 24,
-    nomorSkKejuaraan: ''
+    nomorSkKejuaraan: '',
+    predikatConfig: null
   },
 
   classes: [],
@@ -1005,14 +1006,81 @@ function renderTeacherSwitcherOptions() {
     .join('');
 }
 
+const DEFAULT_PREDIKAT_LABELS = ['ممتاز', 'جيد جداً', 'جيد', 'مقبول', 'ضعيف'];
+const PREDIKAT_KEYS = ['A', 'B', 'C', 'D', 'E'];
+
+function getActiveKkm() {
+  return Number.isFinite(Number(state.bobot && state.bobot.kkm))
+    ? Math.min(100, Math.max(0, Math.round(Number(state.bobot.kkm))))
+    : 75;
+}
+
+function buildDefaultPredikatConfig(kkmRaw, labelsOverride = null) {
+  const kkm = Math.min(100, Math.max(0, Math.round(Number.isFinite(Number(kkmRaw)) ? Number(kkmRaw) : 75)));
+  const span = 100 - kkm;
+  const min2 = Math.min(100, Math.max(kkm, Math.round(kkm + span * 0.25)));
+  const min1 = Math.min(100, Math.max(min2, Math.round(kkm + span * 0.50)));
+  const min0 = Math.min(100, Math.max(min1, Math.round(kkm + span * 0.75)));
+  const mins = [min0, min1, min2, kkm, 0];
+  return PREDIKAT_KEYS.map((key, idx) => {
+    const customLabel = Array.isArray(labelsOverride) && labelsOverride[idx] ? String(labelsOverride[idx]).trim() : '';
+    return { key, min: mins[idx], label: customLabel || DEFAULT_PREDIKAT_LABELS[idx] };
+  });
+}
+
+function getEffectivePredikatConfig() {
+  const kkm = getActiveKkm();
+  const cfg = state.pesantren && state.pesantren.predikatConfig;
+  if (Array.isArray(cfg) && cfg.length === 5 && cfg.every(x => x && typeof x === 'object')) {
+    return cfg.map((item, idx) => ({
+      key: PREDIKAT_KEYS[idx],
+      min: idx === 4 ? 0 : (idx === 3 ? kkm : (Number.isFinite(Number(item.min)) ? Math.min(100, Math.max(0, Math.round(Number(item.min)))) : 0)),
+      label: String(item.label ?? '').trim() || DEFAULT_PREDIKAT_LABELS[idx]
+    }));
+  }
+  return buildDefaultPredikatConfig(kkm);
+}
+
+function validatePredikatTiersClient(tiers, kkmRaw) {
+  if (!Array.isArray(tiers) || tiers.length !== 5) return 'Konfigurasi predikat harus terdiri dari 5 tingkat (A–E)';
+  const kkm = Math.min(100, Math.max(0, Math.round(Number.isFinite(Number(kkmRaw)) ? Number(kkmRaw) : 75)));
+  for (let i = 0; i < 5; i++) {
+    const lbl = String(tiers[i]?.label ?? '').trim();
+    if (!lbl || lbl.length > 40) return `Nama predikat tingkat ${PREDIKAT_KEYS[i]} wajib diisi (maks 40 karakter)`;
+  }
+  const m0 = Math.round(Number(tiers[0]?.min));
+  const m1 = Math.round(Number(tiers[1]?.min));
+  const m2 = Math.round(Number(tiers[2]?.min));
+  if (![m0, m1, m2].every(Number.isFinite)) return 'Batas minimal predikat harus berupa angka bulat 0–100';
+  const strictOrder = (100 - kkm) >= 3;
+  const ok = strictOrder
+    ? (100 >= m0 && m0 > m1 && m1 > m2 && m2 > kkm)
+    : (100 >= m0 && m0 >= m1 && m1 >= m2 && m2 >= kkm);
+  if (!ok) return `Batas minimal predikat A (${m0}) > B (${m1}) > C (${m2}) > KKM (${kkm}) harus terurut menurun tanpa tumpang tindih.`;
+  return null;
+}
+
+function formatPredikatRangeLabel(tiers, idx, kkm) {
+  const m0 = Number(tiers[0]?.min);
+  const m1 = Number(tiers[1]?.min);
+  const m2 = Number(tiers[2]?.min);
+  if (idx === 0) return m0 >= 100 ? '100' : `${m0} – 100`;
+  if (idx === 1) return m1 < m0 ? `${m1} – ${m0 - 1}` : 'Tidak valid';
+  if (idx === 2) return m2 < m1 ? `${m2} – ${m1 - 1}` : 'Tidak valid';
+  if (idx === 3) return kkm < m2 ? `${kkm} – ${m2 - 1}` : (kkm === m2 && (100 - kkm) < 3 ? `${kkm}` : 'Tidak valid');
+  return kkm > 0 ? `0 – ${kkm - 1}` : 'Tidak ada (KKM = 0)';
+}
+
 function getPredikatArab(nilai) {
   if (!hasScoreValue(nilai)) return '—';
   const n = Number(nilai);
-  if (n >= 90) return 'ممتاز';
-  if (n >= 80) return 'جيد جداً';
-  if (n >= 70) return 'جيد';
-  if (n >= 60) return 'مقبول';
-  return 'ضعيف';
+  const kkm = getActiveKkm();
+  const tiers = getEffectivePredikatConfig();
+  if (n < kkm) return tiers[4].label;
+  if (n >= tiers[0].min) return tiers[0].label;
+  if (n >= tiers[1].min) return tiers[1].label;
+  if (n >= tiers[2].min) return tiers[2].label;
+  return tiers[3].label;
 }
 
 function computeStudentTotals(student) {
@@ -1774,6 +1842,93 @@ function adjustWatermarkFontSize(delta) {
   refreshA4WatermarkPreview();
 }
 
+function ensureDraftPredikatConfig() {
+  const kkm = getActiveKkm();
+  if (!Array.isArray(state.pesantren.predikatConfig) || state.pesantren.predikatConfig.length !== 5) {
+    state.pesantren.predikatConfig = buildDefaultPredikatConfig(kkm);
+  } else {
+    state.pesantren.predikatConfig = state.pesantren.predikatConfig.map((item, idx) => ({
+      key: PREDIKAT_KEYS[idx],
+      min: idx === 4 ? 0 : (idx === 3 ? kkm : (item && item.min !== undefined ? item.min : 0)),
+      label: item && item.label !== undefined ? String(item.label) : DEFAULT_PREDIKAT_LABELS[idx]
+    }));
+  }
+  return state.pesantren.predikatConfig;
+}
+
+function syncPredikatEditorDom(updateInputs = false) {
+  const kkm = getActiveKkm();
+  const cfg = ensureDraftPredikatConfig();
+  if (updateInputs) {
+    [0, 1, 2].forEach(idx => {
+      const minInp = document.getElementById(`pred-min-${idx}`);
+      if (minInp) minInp.value = cfg[idx].min;
+    });
+    const dMinEl = document.getElementById('pred-min-3');
+    if (dMinEl) dMinEl.textContent = kkm;
+    cfg.forEach((tier, idx) => {
+      const lblInp = document.getElementById(`pred-label-${idx}`);
+      if (lblInp) lblInp.value = tier.label;
+    });
+  }
+  cfg.forEach((_, idx) => {
+    const rngEl = document.getElementById(`pred-range-${idx}`);
+    if (rngEl) rngEl.textContent = formatPredikatRangeLabel(cfg, idx, kkm);
+  });
+  const errEl = document.getElementById('pred-validation-msg');
+  if (errEl) {
+    const err = validatePredikatTiersClient(cfg, kkm);
+    errEl.textContent = err || '';
+    errEl.classList.toggle('hidden', !err);
+  }
+}
+
+function onKkmDefaultChange(rawVal, commitInput = true) {
+  if (String(rawVal ?? '').trim() === '') return;
+  const n = Number(rawVal);
+  if (!Number.isFinite(n)) return;
+  const nextKkm = Math.min(100, Math.max(0, Math.round(n)));
+  state.bobot.kkm = nextKkm;
+  if (commitInput) {
+    const kkmInp = document.getElementById('set-kkm-default');
+    if (kkmInp) kkmInp.value = nextKkm;
+  }
+  const curLabels = ensureDraftPredikatConfig().map(x => String(x.label ?? '').trim());
+  state.pesantren.predikatConfig = buildDefaultPredikatConfig(nextKkm, curLabels);
+  syncPredikatEditorDom(true);
+}
+
+function onPredikatMinChange(idx, rawVal) {
+  const cfg = ensureDraftPredikatConfig();
+  const trimmed = String(rawVal ?? '').trim();
+  if (trimmed === '') {
+    cfg[idx].min = '';
+  } else {
+    const n = Number(trimmed);
+    if (Number.isFinite(n)) cfg[idx].min = Math.min(100, Math.max(0, Math.round(n)));
+  }
+  syncPredikatEditorDom(false);
+}
+
+function onPredikatLabelChange(idx, rawVal) {
+  const cfg = ensureDraftPredikatConfig();
+  cfg[idx].label = String(rawVal ?? '');
+  syncPredikatEditorDom(false);
+}
+
+function recalculatePredikatFromKkm() {
+  const curLabels = ensureDraftPredikatConfig().map(x => String(x.label ?? '').trim());
+  state.pesantren.predikatConfig = buildDefaultPredikatConfig(getActiveKkm(), curLabels);
+  syncPredikatEditorDom(true);
+  showToast('Rentang nilai predikat dihitung ulang dari KKM');
+}
+
+function resetPredikatDefaults() {
+  state.pesantren.predikatConfig = buildDefaultPredikatConfig(getActiveKkm());
+  syncPredikatEditorDom(true);
+  showToast('Nama & rentang predikat dikembalikan ke default');
+}
+
 function renderLembagaPengaturan() {
   const m = state.pesantren;
   const wmType = m.watermarkType || 'logo';
@@ -1782,12 +1937,15 @@ function renderLembagaPengaturan() {
   const wmSize = Number(m.watermarkSize || 300);
   const wmFontSize = Number(m.watermarkFontSize || 24);
   const modeLbl = wmType === 'text' ? `Teks Berulang (${wmFontSize}px)` : (wmType === 'none' ? 'Tanpa Watermark' : `Logo/Gambar (${wmSize}px)`);
+  const activeKkm = getActiveKkm();
+  const predTiers = ensureDraftPredikatConfig();
+  const predErr = validatePredikatTiersClient(predTiers, activeKkm);
 
   return `
     <div class="grid lg:grid-cols-[8fr_5fr] gap-5 items-start">
       <!-- LEFT COLUMN: FORM PENGATURAN -->
       <div class="bg-white rounded border border-[#e7dcc3] shadow-sm p-5 space-y-5 text-sm">
-        <div class="font-bold text-[22px] text-[#0f4c3a] border-b border-[#e7dcc3] pb-2">Pengaturan Lembaga, Tanggal Rapor &amp; Watermark</div>
+        <div class="font-bold text-[22px] text-[#0f4c3a] border-b border-[#e7dcc3] pb-2">Pengaturan Lembaga, KKM &amp; Predikat, Tanggal Rapor &amp; Watermark</div>
 
         <div class="grid sm:grid-cols-2 gap-4">
           <div>
@@ -1810,13 +1968,73 @@ function renderLembagaPengaturan() {
           </div>
           <div>
             <label class="block font-semibold text-slate-600 mb-1">KKM Default</label>
-            <input type="number" min="0" max="100" value="${state.bobot.kkm}" onchange="if(this.value.trim()==='')return; const n=Number(this.value); if(Number.isFinite(n)) state.bobot.kkm=Math.min(100,Math.max(0,Math.round(n)))" class="w-full border border-slate-300 rounded px-3 py-2" />
+            <input id="set-kkm-default" type="number" min="0" max="100" value="${activeKkm}" oninput="onKkmDefaultChange(this.value, false)" onchange="onKkmDefaultChange(this.value, true)" class="w-full border border-slate-300 rounded px-3 py-2 font-semibold tabular-nums" />
+            <span class="text-[10px] text-slate-400">Mengubah KKM otomatis menyesuaikan rentang predikat berbasis KKM.</span>
           </div>
         </div>
 
-        <!-- 1. TANGGAL RAPOR -->
+        <!-- 1. RANGE & NAMA PREDIKAT NILAI -->
         <div class="border-t border-[#e7dcc3] pt-4 space-y-3">
-          <div class="font-bold text-xs text-[#0f4c3a] uppercase tracking-wider">1. Pengaturan Tanggal &amp; Tempat Penetapan Rapor</div>
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <div class="font-bold text-xs text-[#0f4c3a] uppercase tracking-wider">1. Pengaturan Range &amp; Nama Predikat Nilai (Berbasis KKM)</div>
+              <div class="text-[11px] text-slate-500">4 tingkat tuntas (&ge; KKM) + 1 tingkat belum tuntas (&lt; KKM). Nilai &amp; predikat di bawah KKM otomatis dicetak merah di Rapor.</div>
+            </div>
+            <div class="flex flex-wrap gap-1.5 text-xs">
+              <button type="button" onclick="recalculatePredikatFromKkm()" class="px-2.5 py-1 rounded border border-[#136048] text-[#0f4c3a] bg-white hover:bg-emerald-50 font-semibold">Hitung Otomatis dari KKM</button>
+              <button type="button" onclick="resetPredikatDefaults()" class="px-2.5 py-1 rounded border border-slate-300 text-slate-700 bg-white hover:bg-slate-100 font-semibold">Reset Default</button>
+            </div>
+          </div>
+
+          <div class="overflow-x-auto bg-[#fbf8f1] p-3 rounded border border-[#e7dcc3]">
+            <table class="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr class="border-b border-[#e7dcc3] text-[#0f4c3a] font-bold">
+                  <th class="py-1.5 px-2 w-12 text-center">Tingkat</th>
+                  <th class="py-1.5 px-2">Status Ketuntasan</th>
+                  <th class="py-1.5 px-2 w-28 text-center">Batas Minimal</th>
+                  <th class="py-1.5 px-2 w-36 text-center">Rentang Nilai</th>
+                  <th class="py-1.5 px-2">Nama Predikat (Tampil di Rapor)</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-[#e7dcc3]">
+                ${predTiers.map((tier, idx) => {
+                  const isFailTier = idx === 4;
+                  const isKkmTier = idx === 3;
+                  const rangeLabel = formatPredikatRangeLabel(predTiers, idx, activeKkm);
+                  return `
+                    <tr>
+                      <td class="py-2 px-2 text-center font-bold ${isFailTier ? 'text-[#d90000]' : 'text-[#0f4c3a]'}">${escapeHtml(tier.key)}</td>
+                      <td class="py-2 px-2">
+                        ${isFailTier
+                          ? '<span class="inline-block px-2 py-0.5 rounded bg-rose-100 text-[#d90000] font-semibold">Di bawah KKM (Merah)</span>'
+                          : `<span class="inline-block px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-semibold">${isKkmTier ? 'Batas Tuntas (= KKM)' : 'Tuntas (&ge; KKM)'}</span>`}
+                      </td>
+                      <td class="py-2 px-2 text-center">
+                        ${isFailTier
+                          ? '<span class="inline-block px-2.5 py-1 rounded bg-slate-100 border border-slate-200 font-mono text-slate-500">0 (&lt; KKM)</span>'
+                          : isKkmTier
+                            ? `<span id="pred-min-3" class="inline-block px-2.5 py-1 rounded bg-emerald-50 border border-emerald-200 font-mono font-bold text-[#0f4c3a]">${activeKkm}</span>`
+                            : `<input id="pred-min-${idx}" type="number" min="0" max="100" value="${escapeHtml(tier.min)}" oninput="onPredikatMinChange(${idx}, this.value)" class="w-20 border border-slate-300 rounded px-2 py-1 bg-white text-center font-mono font-bold tabular-nums" />`}
+                      </td>
+                      <td class="py-2 px-2 text-center">
+                        <span id="pred-range-${idx}" class="inline-block px-2.5 py-1 rounded border font-mono font-bold tabular-nums ${isFailTier ? 'bg-rose-50 border-rose-200 text-[#d90000]' : 'bg-white border-[#e7dcc3] text-[#0f4c3a]'}">${escapeHtml(rangeLabel)}</span>
+                      </td>
+                      <td class="py-2 px-2">
+                        <input id="pred-label-${idx}" type="text" dir="rtl" maxlength="40" value="${escapeHtml(tier.label)}" oninput="onPredikatLabelChange(${idx}, this.value)" class="w-full border border-slate-300 rounded px-2.5 py-1 bg-white arabic-font text-base font-bold ${isFailTier ? 'text-[#d90000]' : 'text-slate-900'}" />
+                      </td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+            <div id="pred-validation-msg" class="${predErr ? '' : 'hidden'} mt-2 px-3 py-1.5 rounded bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold">${escapeHtml(predErr || '')}</div>
+          </div>
+        </div>
+
+        <!-- 2. TANGGAL RAPOR -->
+        <div class="border-t border-[#e7dcc3] pt-4 space-y-3">
+          <div class="font-bold text-xs text-[#0f4c3a] uppercase tracking-wider">2. Pengaturan Tanggal &amp; Tempat Penetapan Rapor</div>
           <div class="grid sm:grid-cols-3 gap-3 bg-[#fbf8f1] p-3.5 rounded border border-[#e7dcc3]">
             <div>
               <label class="block font-semibold text-slate-600 mb-1">Pilih Tanggal (Kalender)</label>
@@ -1834,9 +2052,9 @@ function renderLembagaPengaturan() {
           </div>
         </div>
 
-        <!-- 2. WATERMARK RAPOR -->
+        <!-- 3. WATERMARK RAPOR -->
         <div class="border-t border-[#e7dcc3] pt-4 space-y-3">
-          <div class="font-bold text-xs text-[#0f4c3a] uppercase tracking-wider">2. Pengaturan Watermark Cetak Rapor</div>
+          <div class="font-bold text-xs text-[#0f4c3a] uppercase tracking-wider">3. Pengaturan Watermark Cetak Rapor</div>
           <div class="grid sm:grid-cols-2 gap-3 bg-[#fbf8f1] p-3.5 rounded border border-[#e7dcc3]">
             <div>
               <label class="block font-semibold text-slate-600 mb-1">Mode Watermark pada Rapor</label>
@@ -1954,6 +2172,17 @@ function renderLembagaPengaturan() {
 // ===================== KELAS -> WALI KELAS =====================
 async function savePengaturanFromForm() {
   const m = state.pesantren;
+  const activeKkm = getActiveKkm();
+  const draftTiers = ensureDraftPredikatConfig().map((item, idx) => ({
+    key: PREDIKAT_KEYS[idx],
+    min: idx === 4 ? 0 : (idx === 3 ? activeKkm : (String(item.min ?? '').trim() === '' ? NaN : Math.round(Number(item.min)))),
+    label: String(item.label ?? '').trim()
+  }));
+  const predErr = validatePredikatTiersClient(draftTiers, activeKkm);
+  if (predErr) {
+    showToast('Gagal: ' + predErr);
+    return;
+  }
   const newTahun = document.getElementById('set-tahun')?.value || m.tahun;
   const newSemester = document.getElementById('set-semester')?.value || m.semester;
   const periodChanged = (newTahun !== m.tahun) || (newSemester !== m.semester);
@@ -1962,7 +2191,8 @@ async function savePengaturanFromForm() {
     semester: newSemester,
     semesterArab: newSemester === 'Ganjil' ? 'الأول' : 'الثاني',
     kurikulum: m.kurikulum,
-    kkmDefault: state.bobot.kkm,
+    kkmDefault: activeKkm,
+    predikatConfig: draftTiers,
     tanggalIso: m.tanggalIso,
     tanggalArab: m.tanggalArab,
     kotaArab: m.kotaArab,
@@ -1978,7 +2208,7 @@ async function savePengaturanFromForm() {
     if (periodChanged) resetPeriodCachedSelections();
     const ok = await refreshStateFromServer(true);
     if (ok) {
-      showToast('Pengaturan Lembaga, Tanggal Rapor & Watermark disimpan ke database');
+      showToast('Pengaturan Lembaga, KKM & Predikat, Tanggal Rapor & Watermark disimpan ke database');
     } else if (state.authUser) {
       showToast('Pengaturan tersimpan, silakan muat ulang halaman untuk menyegarkan tampilan');
     }
@@ -3624,6 +3854,7 @@ function renderPenilaian() {
             const hasVal = hasScoreValue(rawVal);
             const numVal = hasVal ? Number(rawVal) : '';
             const isLow = hasVal && numVal < 60;
+            const isBelowKkm = hasVal && numVal < getActiveKkm();
             return `
               <tr class="hover:bg-[#fbf8f1]">
                 <td class="px-3 py-2 text-center">${i + 1}</td>
@@ -3639,7 +3870,7 @@ function renderPenilaian() {
                   </div>
                 </td>
                 <td id="jumlah-cell-${st.id}" class="px-3 py-2 text-center font-bold tabular-nums">${hasVal ? numVal * jamNum : '–'}</td>
-                <td id="pred-cell-${st.id}" class="px-3 py-2 text-center arabic-font text-base font-bold">${hasVal ? getPredikatArab(numVal) : '–'}</td>
+                <td id="pred-cell-${st.id}" class="px-3 py-2 text-center arabic-font text-base font-bold${isBelowKkm ? ' text-[#d90000]' : ''}">${hasVal ? escapeHtml(getPredikatArab(numVal)) : '–'}</td>
               </tr>
             `;
           }).join('')}
@@ -3702,7 +3933,10 @@ function applyDefaultNilai(subId, jam, kelasKode) {
       inp.className = `w-16 border ${isLow ? 'border-amber-500 bg-amber-50 text-amber-900' : 'border-slate-300'} rounded px-2 py-1 text-center tabular-nums`;
     }
     if (jum) jum.textContent = val * jamNum;
-    if (prd) prd.textContent = getPredikatArab(val);
+    if (prd) {
+      prd.textContent = getPredikatArab(val);
+      prd.classList.toggle('text-[#d90000]', val < getActiveKkm());
+    }
     if (wrn) wrn.classList.toggle('hidden', !isLow);
   });
   saveLocalScoreDraft(kelasKode, subId);
@@ -3724,7 +3958,7 @@ function stScore(studentId, subId, val, jam, kelasKode) {
     delete s.scores[subId];
     if (inp) inp.className = 'w-16 border border-slate-300 rounded px-2 py-1 text-center tabular-nums';
     if (jum) jum.textContent = '–';
-    if (prd) prd.textContent = '–';
+    if (prd) { prd.textContent = '–'; prd.classList.remove('text-[#d90000]'); }
     if (wrn) wrn.classList.add('hidden');
     saveLocalScoreDraft(kelasKode || s.kelas, subId);
     return;
@@ -3741,7 +3975,10 @@ function stScore(studentId, subId, val, jam, kelasKode) {
     inp.className = `w-16 border ${isLow ? 'border-amber-500 bg-amber-50 text-amber-900' : 'border-slate-300'} rounded px-2 py-1 text-center tabular-nums`;
   }
   if (jum) jum.textContent = num * jamNum;
-  if (prd) prd.textContent = getPredikatArab(num);
+  if (prd) {
+    prd.textContent = getPredikatArab(num);
+    prd.classList.toggle('text-[#d90000]', num < getActiveKkm());
+  }
   if (wrn) wrn.classList.toggle('hidden', !isLow);
   saveLocalScoreDraft(kelasKode || s.kelas, subId);
 }
@@ -4516,7 +4753,7 @@ function renderSingleRaporSheet(s, isLastPage, printAssets = null) {
           <td class="border-l border-slate-700">${toArabicDigits(jam)}</td>
           <td class="border-l border-slate-700 font-bold${isBelowKkm ? ' rapor-score-below-kkm' : ''}">${hasVal ? toArabicDigits(score) : '–'}</td>
           <td class="border-l border-slate-700 font-bold">${hasVal ? toArabicDigits(jumlah) : '–'}</td>
-          <td class="border-l border-slate-700 font-semibold">${hasVal ? getPredikatArab(score) : '–'}</td>
+          <td class="border-l border-slate-700 font-semibold${isBelowKkm ? ' rapor-score-below-kkm' : ''}">${hasVal ? escapeHtml(getPredikatArab(score)) : '–'}</td>
           <td class="text-left font-sans text-[11.5px] text-slate-700 leading-none" dir="ltr">${escapeHtml(sub.namaId)}</td>
         </tr>
       `;
@@ -4610,7 +4847,7 @@ function renderSingleRaporSheet(s, isLastPage, printAssets = null) {
 
           <div class="grid grid-cols-3 gap-2 border border-slate-800 rounded px-2.5 py-1.5 mb-2.5 bg-slate-50/75 text-center text-[16.5px] font-bold leading-tight">
             <div>المجموع الكلي: <span>${hasAnyScore ? toArabicDigits(totalWeighted) : '–'}</span></div>
-            <div>المعدل العام: <span>${hasAnyScore ? `${toArabicDigits(avg.toFixed(2))} (${getPredikatArab(avg)})` : '–'}</span></div>
+            <div>المعدل العام: <span${hasAnyScore && avg < kkm ? ' class="rapor-score-below-kkm"' : ''}>${hasAnyScore ? `${toArabicDigits(avg.toFixed(2))} (${escapeHtml(getPredikatArab(avg))})` : '–'}</span></div>
             <div>الترتيب: <span class="text-emerald-800">${hasAnyScore ? toArabicOrdinal(rank) : '–'}</span> ${hasAnyScore ? `<span class="text-[13.5px] font-normal">(من ${toArabicDigits(totalStudents)})</span>` : ''}</div>
           </div>
         </div>
@@ -5864,7 +6101,7 @@ function renderSiswaDashboard() {
       </div>
 
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div class="rounded bg-[#c9a227] text-[#2b2200] p-4 shadow-sm border border-[#a07d18]/40"><div class="text-2xl font-bold tabular-nums">${hasAnyScore ? avg.toFixed(2) : '–'}</div><div class="text-xs mt-1">Rata-rata Nilai${hasAnyScore ? ` (${getPredikatArab(avg)})` : ''}</div></div>
+        <div class="rounded bg-[#c9a227] text-[#2b2200] p-4 shadow-sm border border-[#a07d18]/40"><div class="text-2xl font-bold tabular-nums">${hasAnyScore ? avg.toFixed(2) : '–'}</div><div class="text-xs mt-1">Rata-rata Nilai${hasAnyScore ? ` (${escapeHtml(getPredikatArab(avg))})` : ''}</div></div>
         <div class="rounded bg-[#136048] text-white p-4 shadow-sm"><div class="text-2xl font-bold tabular-nums">${hasAnyScore ? `#${rank} <span class="text-sm font-normal">/ ${totalStudents}</span>` : '–'}</div><div class="text-xs mt-1">Peringkat Sementara</div></div>
         <div class="rounded bg-[#1d7a5c] text-white p-4 shadow-sm"><div class="text-2xl font-bold tabular-nums">${hasAnyScore ? totalWeighted : '–'}</div><div class="text-xs mt-1">Total Nilai Terbobot</div></div>
       </div>
@@ -5887,14 +6124,15 @@ function renderSiswaDashboard() {
               const rawVal = st.scores ? st.scores[sub.id] : undefined;
               const hasVal = hasScoreValue(rawVal);
               const sc = hasVal ? Number(rawVal) : null;
+              const isBelowKkm = hasVal && sc < getActiveKkm();
               return `
                 <tr>
                   <td class="px-3 py-2 text-center">${i + 1}</td>
                   <td class="px-3 py-2 font-semibold">${escapeHtml(sub.namaId)}</td>
                   <td class="px-3 py-2 text-right arabic-font text-base">${escapeHtml(sub.namaArab)}</td>
                   <td class="px-3 py-2 text-center">${sub.jam}</td>
-                  <td class="px-3 py-2 text-center font-bold tabular-nums">${hasVal ? sc : '–'}</td>
-                  <td class="px-3 py-2 text-center arabic-font text-sm font-bold">${hasVal ? getPredikatArab(sc) : '–'}</td>
+                  <td class="px-3 py-2 text-center font-bold tabular-nums${isBelowKkm ? ' text-[#d90000]' : ''}">${hasVal ? sc : '–'}</td>
+                  <td class="px-3 py-2 text-center arabic-font text-sm font-bold${isBelowKkm ? ' text-[#d90000]' : ''}">${hasVal ? escapeHtml(getPredikatArab(sc)) : '–'}</td>
                 </tr>
               `;
             }).join('')}

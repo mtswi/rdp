@@ -190,6 +190,65 @@ function parseAttendanceCount(raw) {
   return Math.max(0, Math.round(n));
 }
 
+const DEFAULT_PREDIKAT_LABELS = ['ممتاز', 'جيد جداً', 'جيد', 'مقبول', 'ضعيف'];
+const PREDIKAT_KEYS = ['A', 'B', 'C', 'D', 'E'];
+
+function buildDefaultPredikatConfig(kkmRaw, labelsOverride = null) {
+  const kkm = Math.min(100, Math.max(0, Math.round(Number.isFinite(Number(kkmRaw)) ? Number(kkmRaw) : 75)));
+  const span = 100 - kkm;
+  const min2 = Math.min(100, Math.max(kkm, Math.round(kkm + span * 0.25)));
+  const min1 = Math.min(100, Math.max(min2, Math.round(kkm + span * 0.50)));
+  const min0 = Math.min(100, Math.max(min1, Math.round(kkm + span * 0.75)));
+  const mins = [min0, min1, min2, kkm, 0];
+  return PREDIKAT_KEYS.map((key, idx) => {
+    const customLabel = Array.isArray(labelsOverride) && labelsOverride[idx] ? String(labelsOverride[idx]).trim() : '';
+    return { key, min: mins[idx], label: customLabel || DEFAULT_PREDIKAT_LABELS[idx] };
+  });
+}
+
+function parseAndValidatePredikatConfig(raw, effectiveKkm) {
+  if (raw === null || raw === undefined || raw === '') return { ok: true, value: null };
+  let arr = raw;
+  if (typeof arr === 'string') {
+    try { arr = JSON.parse(arr); } catch (_) { return { ok: false, error: 'Format predikatConfig JSON tidak valid' }; }
+  }
+  if (!Array.isArray(arr) || arr.length !== 5) {
+    return { ok: false, error: 'Konfigurasi predikat harus terdiri dari 5 tingkat (A–E)' };
+  }
+  const kkm = Math.min(100, Math.max(0, Math.round(Number.isFinite(Number(effectiveKkm)) ? Number(effectiveKkm) : 75)));
+  const out = [];
+  for (let i = 0; i < 5; i++) {
+    const item = arr[i];
+    if (!item || typeof item !== 'object') return { ok: false, error: 'Item predikat tidak valid' };
+    const label = String(item.label ?? '').trim();
+    if (!label || label.length > 40) {
+      return { ok: false, error: `Nama predikat tingkat ${PREDIKAT_KEYS[i]} wajib diisi (maks 40 karakter)` };
+    }
+    let minVal;
+    if (i === 4) minVal = 0;
+    else if (i === 3) minVal = kkm;
+    else {
+      const n = Number(item.min);
+      if (!Number.isFinite(n) || n < 0 || n > 100) {
+        return { ok: false, error: `Batas minimal predikat tingkat ${PREDIKAT_KEYS[i]} harus angka 0–100` };
+      }
+      minVal = Math.round(n);
+    }
+    out.push({ key: PREDIKAT_KEYS[i], min: minVal, label });
+  }
+  const strictOrder = (100 - kkm) >= 3;
+  if (strictOrder) {
+    if (!(100 >= out[0].min && out[0].min > out[1].min && out[1].min > out[2].min && out[2].min > out[3].min)) {
+      return { ok: false, error: 'Batas minimal predikat A > B > C > KKM harus terurut menurun tanpa tumpang tindih' };
+    }
+  } else {
+    if (!(100 >= out[0].min && out[0].min >= out[1].min && out[1].min >= out[2].min && out[2].min >= out[3].min)) {
+      return { ok: false, error: 'Batas minimal predikat tidak valid terhadap KKM' };
+    }
+  }
+  return { ok: true, value: out };
+}
+
 function validateOrigin(request, url) {
   const secFetchSite = String(request.headers.get('sec-fetch-site') || '').toLowerCase();
   if (secFetchSite === 'cross-site') return false;
@@ -335,7 +394,7 @@ async function getFullState(db, opts = {}) {
               kepala, kepalaArab, tahun, semester, semesterArab, kurikulum,
               kkmDefault, tanggalIso, watermarkType, watermarkText,
               watermarkOpacity, watermarkColor, watermarkSize, watermarkFontSize,
-              nomorSkKejuaraan,
+              nomorSkKejuaraan, predikatConfig,
               (length(COALESCE(logoDataUrl, '')) || ':' || substr(COALESCE(logoDataUrl, ''), 1, 24) || ':' ||
                length(COALESCE(watermarkDataUrl, '')) || ':' || substr(COALESCE(watermarkDataUrl, ''), 1, 24)) AS mediaStamp
        FROM pesantren_profile WHERE id = 1`
@@ -348,6 +407,11 @@ async function getFullState(db, opts = {}) {
     : `${logoStr.length}:${logoStr.slice(0, 24)}:${wmStr.length}:${wmStr.slice(0, 24)}`;
   const activeTahun = p.tahun || '2026/2027';
   const activeSemester = p.semester || 'Ganjil';
+  const activeKkm = (p.kkmDefault !== undefined && p.kkmDefault !== null) ? Number(p.kkmDefault) : 75;
+  const parsedPred = parseAndValidatePredikatConfig(p.predikatConfig, activeKkm);
+  const effectivePredikatConfig = (parsedPred.ok && parsedPred.value)
+    ? parsedPred.value
+    : buildDefaultPredikatConfig(activeKkm);
 
   const [clsRes, subRes, tRes, asgRes, apRes, stRes, attRes, scRes, actRes] = await db.batch([
     db.prepare('SELECT * FROM classes WHERE tahun = ? ORDER BY id ASC').bind(activeTahun),
@@ -442,10 +506,11 @@ async function getFullState(db, opts = {}) {
       watermarkSize: Number(p.watermarkSize || 300),
       watermarkFontSize: Number(p.watermarkFontSize || 24),
       nomorSkKejuaraan: p.nomorSkKejuaraan || '001/SK-KEJ/PP-WI/XII/2025',
+      predikatConfig: effectivePredikatConfig,
       mediaStamp,
       mediaOmitted: omitMedia
     },
-    bobot: { harian: 60, pas: 40, kkm: p.kkmDefault ?? 75 },
+    bobot: { harian: 60, pas: 40, kkm: activeKkm },
     classes,
     subjects,
     teachers,
@@ -946,7 +1011,7 @@ async function handleRequest(request, env) {
           'kepala', 'kepalaArab', 'tahun', 'semester', 'semesterArab', 'kurikulum',
           'kkmDefault', 'logoDataUrl', 'tanggalIso', 'watermarkType', 'watermarkText',
           'watermarkDataUrl', 'watermarkOpacity', 'watermarkColor', 'watermarkSize',
-          'watermarkFontSize', 'nomorSkKejuaraan'
+          'watermarkFontSize', 'nomorSkKejuaraan', 'predikatConfig'
         ];
         for (const imgField of ['logoDataUrl', 'watermarkDataUrl']) {
           if (Object.prototype.hasOwnProperty.call(body, imgField) && body[imgField] !== null && body[imgField] !== '') {
@@ -965,6 +1030,38 @@ async function handleRequest(request, env) {
         }
         const sets = [];
         const vals = [];
+        const hasKkm = Object.prototype.hasOwnProperty.call(body, 'kkmDefault');
+        const hasPred = Object.prototype.hasOwnProperty.call(body, 'predikatConfig');
+        let curProf = null;
+        if (hasKkm || hasPred) {
+          curProf = (await env.DB.prepare('SELECT kkmDefault, predikatConfig FROM pesantren_profile WHERE id = 1').first()) || {};
+        }
+        let effectiveKkm = (curProf && curProf.kkmDefault !== undefined && curProf.kkmDefault !== null) ? Number(curProf.kkmDefault) : 75;
+        if (hasKkm) {
+          const parsedKkm = parseBoundedInt(body.kkmDefault, 0, 100);
+          if (parsedKkm === null) {
+            return jsonResponse(400, { error: 'Kolom kkmDefault harus berupa angka bulat 0–100' });
+          }
+          effectiveKkm = parsedKkm;
+        }
+        if (hasPred) {
+          const parsedPred = parseAndValidatePredikatConfig(body.predikatConfig, effectiveKkm);
+          if (!parsedPred.ok) {
+            return jsonResponse(400, { error: parsedPred.error });
+          }
+          sets.push('predikatConfig = ?');
+          vals.push(parsedPred.value ? JSON.stringify(parsedPred.value) : null);
+        } else if (hasKkm && curProf && curProf.predikatConfig) {
+          let existingLabels = null;
+          try {
+            const oldArr = JSON.parse(curProf.predikatConfig);
+            if (Array.isArray(oldArr) && oldArr.length === 5) {
+              existingLabels = oldArr.map(x => String(x?.label || '').trim());
+            }
+          } catch (_) {}
+          sets.push('predikatConfig = ?');
+          vals.push(JSON.stringify(buildDefaultPredikatConfig(effectiveKkm, existingLabels)));
+        }
         const intBounds = {
           kkmDefault: [0, 100],
           watermarkSize: [50, 1000],
@@ -973,6 +1070,7 @@ async function handleRequest(request, env) {
         const requiredNonEmpty = new Set(['nama', 'namaArab']);
         for (const key of allowed) {
           if (Object.prototype.hasOwnProperty.call(body, key)) {
+            if (key === 'predikatConfig') continue;
             const rawVal = body[key];
             if (rawVal !== null && typeof rawVal === 'object') {
               return jsonResponse(400, { error: `Format kolom ${key} tidak valid` });

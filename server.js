@@ -4,7 +4,7 @@ const os = require('node:os');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { DatabaseSync } = require('node:sqlite');
-const { db, DB_PATH, getFullState, hashPassword, hashPasswordAsync, verifyPassword, verifyPasswordAsync, runInTransaction } = require('./db');
+const { db, DB_PATH, getFullState, buildDefaultPredikatConfig, parseAndValidatePredikatConfig, hashPassword, hashPasswordAsync, verifyPassword, verifyPasswordAsync, runInTransaction } = require('./db');
 
 const HOST = process.env.HOST || '0.0.0.0';
 const PORT = Number(process.env.PORT) || 3000;
@@ -809,7 +809,7 @@ const server = http.createServer(async (req, res) => {
         'kepala', 'kepalaArab', 'tahun', 'semester', 'semesterArab', 'kurikulum',
         'kkmDefault', 'logoDataUrl', 'tanggalIso', 'watermarkType', 'watermarkText',
         'watermarkDataUrl', 'watermarkOpacity', 'watermarkColor', 'watermarkSize',
-        'watermarkFontSize', 'nomorSkKejuaraan'
+        'watermarkFontSize', 'nomorSkKejuaraan', 'predikatConfig'
       ];
       for (const imgField of ['logoDataUrl', 'watermarkDataUrl']) {
         if (Object.prototype.hasOwnProperty.call(body, imgField) && body[imgField] !== null && body[imgField] !== '') {
@@ -828,6 +828,38 @@ const server = http.createServer(async (req, res) => {
       }
       const sets = [];
       const vals = [];
+      const hasKkm = Object.prototype.hasOwnProperty.call(body, 'kkmDefault');
+      const hasPred = Object.prototype.hasOwnProperty.call(body, 'predikatConfig');
+      let curProf = null;
+      if (hasKkm || hasPred) {
+        curProf = db.prepare('SELECT kkmDefault, predikatConfig FROM pesantren_profile WHERE id = 1').get() || {};
+      }
+      let effectiveKkm = (curProf && curProf.kkmDefault !== undefined && curProf.kkmDefault !== null) ? Number(curProf.kkmDefault) : 75;
+      if (hasKkm) {
+        const parsedKkm = parseBoundedInt(body.kkmDefault, 0, 100);
+        if (parsedKkm === null) {
+          return sendJson(res, 400, { error: 'Kolom kkmDefault harus berupa angka bulat 0–100' });
+        }
+        effectiveKkm = parsedKkm;
+      }
+      if (hasPred) {
+        const parsedPred = parseAndValidatePredikatConfig(body.predikatConfig, effectiveKkm);
+        if (!parsedPred.ok) {
+          return sendJson(res, 400, { error: parsedPred.error });
+        }
+        sets.push('predikatConfig = ?');
+        vals.push(parsedPred.value ? JSON.stringify(parsedPred.value) : null);
+      } else if (hasKkm && curProf && curProf.predikatConfig) {
+        let existingLabels = null;
+        try {
+          const oldArr = JSON.parse(curProf.predikatConfig);
+          if (Array.isArray(oldArr) && oldArr.length === 5) {
+            existingLabels = oldArr.map(x => String(x?.label || '').trim());
+          }
+        } catch (_) {}
+        sets.push('predikatConfig = ?');
+        vals.push(JSON.stringify(buildDefaultPredikatConfig(effectiveKkm, existingLabels)));
+      }
       const intBounds = {
         kkmDefault: [0, 100],
         watermarkSize: [50, 1000],
@@ -836,6 +868,7 @@ const server = http.createServer(async (req, res) => {
       const requiredNonEmpty = new Set(['nama', 'namaArab']);
       for (const key of allowed) {
         if (Object.prototype.hasOwnProperty.call(body, key)) {
+          if (key === 'predikatConfig') continue;
           const rawVal = body[key];
           if (rawVal !== null && typeof rawVal === 'object') {
             return sendJson(res, 400, { error: `Format kolom ${key} tidak valid` });

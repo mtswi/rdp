@@ -76,6 +76,12 @@
         page-break-after: always !important;
         break-after: page !important;
       }
+      .rapor-score-below-kkm {
+        color: #d90000 !important;
+        font-weight: 700 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
     }
     .rapor-table {
       border-collapse: collapse !important;
@@ -86,6 +92,12 @@
       border: 1px solid #1e293b !important;
       padding: 2.5px 5px;
       line-height: 1.15;
+    }
+    .rapor-score-below-kkm {
+      color: #d90000 !important;
+      font-weight: 700 !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
     }
     .rdp-scroll::-webkit-scrollbar { width: 5px; height: 5px; }
     .rdp-scroll::-webkit-scrollbar-track { background: transparent; }
@@ -4314,6 +4326,12 @@ async function openRaporInNewTab(studentsList, autoPrint = false) {
         page-break-after: always !important;
         break-after: page !important;
       }
+      .rapor-score-below-kkm {
+        color: #d90000 !important;
+        font-weight: 700 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
     }
     .rapor-table {
       border-collapse: collapse !important;
@@ -4324,6 +4342,12 @@ async function openRaporInNewTab(studentsList, autoPrint = false) {
       border: 1px solid #1e293b !important;
       padding: 2.5px 5px;
       line-height: 1.15;
+    }
+    .rapor-score-below-kkm {
+      color: #d90000 !important;
+      font-weight: 700 !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
     }
     .arabic-font { font-family: "Amiri", "Noto Naskh Arabic", "Traditional Arabic", "Scheherazade New", serif; }
   </style>
@@ -4465,6 +4489,7 @@ function renderSingleRaporSheet(s, isLastPage, printAssets = null) {
   const { rank, totalStudents } = getStudentRank(s.id);
   const clsObj = state.classes.find(c => c.kode === s.kelas);
   const wali = (clsObj && clsObj.waliId) ? state.teachers.find(t => t.id === clsObj.waliId) : null;
+  const kkm = Number.isFinite(Number(state.bobot && state.bobot.kkm)) ? Number(state.bobot.kkm) : 75;
 
   const renderGroupRows = (list) => {
     let sumJam = 0, sumWeighted = 0, hasGroupScore = false;
@@ -4472,6 +4497,7 @@ function renderSingleRaporSheet(s, isLastPage, printAssets = null) {
       const rawScore = s.scores ? s.scores[sub.id] : undefined;
       const hasVal = hasScoreValue(rawScore);
       const score = hasVal ? Number(rawScore) : null;
+      const isBelowKkm = hasVal && score < kkm;
       const jam = Number(sub.jam) || 0;
       const jumlah = hasVal ? score * jam : null;
       sumJam += jam;
@@ -4484,7 +4510,7 @@ function renderSingleRaporSheet(s, isLastPage, printAssets = null) {
           <td class="border-l border-slate-700">${toArabicDigits(i + 1)}</td>
           <td class="border-l border-slate-700 text-right font-semibold text-[17.5px]">${escapeHtml(sub.namaArab)}</td>
           <td class="border-l border-slate-700">${toArabicDigits(jam)}</td>
-          <td class="border-l border-slate-700 font-bold">${hasVal ? toArabicDigits(score) : '–'}</td>
+          <td class="border-l border-slate-700 font-bold${isBelowKkm ? ' rapor-score-below-kkm' : ''}">${hasVal ? toArabicDigits(score) : '–'}</td>
           <td class="border-l border-slate-700 font-bold">${hasVal ? toArabicDigits(jumlah) : '–'}</td>
           <td class="border-l border-slate-700 font-semibold">${hasVal ? getPredikatArab(score) : '–'}</td>
           <td class="text-left font-sans text-[11.5px] text-slate-700 leading-none" dir="ltr">${escapeHtml(sub.namaId)}</td>

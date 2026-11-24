@@ -420,6 +420,93 @@
   </div>
 
 <script>
+// ===================== ACADEMIC YEAR CONFIG & HELPERS =====================
+const ACADEMIC_YEAR_CONFIG = {
+  startYear: 2024,
+  yearsAhead: 5,
+  minLastStartYear: 2029,
+  storageKey: 'rdp_custom_academic_years'
+};
+
+function normalizeAcademicYear(val) {
+  const s = String(val ?? '').trim();
+  const m = /^(\d{4})\/(\d{4})$/.exec(s);
+  if (!m) return null;
+  const start = Number(m[1]);
+  const end = Number(m[2]);
+  if (start < 2000 || start > 2100 || end !== start + 1) return null;
+  return `${m[1]}/${m[2]}`;
+}
+
+function loadCustomAcademicYears() {
+  try {
+    const raw = localStorage.getItem(ACADEMIC_YEAR_CONFIG.storageKey);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map(normalizeAcademicYear).filter(Boolean);
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveCustomAcademicYear(yearStr) {
+  const norm = normalizeAcademicYear(yearStr);
+  if (!norm) return null;
+  try {
+    const merged = Array.from(new Set([...loadCustomAcademicYears(), norm])).sort();
+    localStorage.setItem(ACADEMIC_YEAR_CONFIG.storageKey, JSON.stringify(merged));
+  } catch (e) { /* ignore storage errors */ }
+  return norm;
+}
+
+function getAcademicYearOptions(extraYears = []) {
+  const collected = new Set();
+  const pushYear = (y) => {
+    const norm = normalizeAcademicYear(y);
+    if (norm) collected.add(norm);
+  };
+  (Array.isArray(extraYears) ? extraYears : [extraYears]).forEach(pushYear);
+  if (typeof state !== 'undefined' && state.pesantren && state.pesantren.tahun) {
+    pushYear(state.pesantren.tahun);
+  }
+  loadCustomAcademicYears().forEach(pushYear);
+
+  const collectedStartYears = Array.from(collected).map(y => Number(y.slice(0, 4)));
+  const maxStartYear = Math.max(
+    ACADEMIC_YEAR_CONFIG.minLastStartYear,
+    new Date().getFullYear() + ACADEMIC_YEAR_CONFIG.yearsAhead,
+    ...(collectedStartYears.length ? collectedStartYears.map(y => y + 1) : [])
+  );
+
+  for (let y = ACADEMIC_YEAR_CONFIG.startYear; y <= maxStartYear; y++) {
+    collected.add(`${y}/${y + 1}`);
+  }
+  return Array.from(collected).sort();
+}
+
+function addCustomAcademicYear() {
+  const existing = getAcademicYearOptions();
+  const last = existing[existing.length - 1] || `${ACADEMIC_YEAR_CONFIG.minLastStartYear}/${ACADEMIC_YEAR_CONFIG.minLastStartYear + 1}`;
+  const nextStart = Number(last.slice(0, 4)) + 1;
+  const suggested = `${nextStart}/${nextStart + 1}`;
+  const input = prompt(`Masukkan Tahun Pelajaran baru (format YYYY/YYYY, contoh: ${suggested}):`, suggested);
+  if (input === null) return;
+  const normalized = normalizeAcademicYear(input);
+  if (!normalized) {
+    showToast('Format tahun pelajaran tidak valid. Gunakan format YYYY/YYYY berurutan, contoh: 2030/2031');
+    return;
+  }
+  saveCustomAcademicYear(normalized);
+  const sel = document.getElementById('set-tahun');
+  if (sel) {
+    const options = getAcademicYearOptions([state.pesantren && state.pesantren.tahun, normalized]);
+    sel.innerHTML = options.map(y => `<option value="${escapeHtml(y)}" ${y === normalized ? 'selected' : ''}>${escapeHtml(y)}</option>`).join('');
+    sel.value = normalized;
+  }
+  showToast(`Tahun pelajaran ${normalized} ditambahkan. Klik "Simpan Pengaturan" untuk mengaktifkan.`);
+}
+
 // ===================== STATE =====================
 const state = {
   authUser: null,
@@ -2014,9 +2101,12 @@ function renderLembagaPengaturan() {
         <div class="grid sm:grid-cols-2 gap-4">
           <div>
             <label class="block font-semibold text-slate-600 mb-1">Tahun Pelajaran Aktif</label>
-            <select id="set-tahun" class="w-full border border-slate-300 rounded px-3 py-2 bg-white">
-              ${Array.from(new Set(['2024/2025', '2025/2026', '2026/2027', '2027/2028', '2028/2029', ...(m.tahun ? [m.tahun] : [])])).sort().map(y => `<option value="${escapeHtml(y)}" ${m.tahun === y ? 'selected' : ''}>${escapeHtml(y)}</option>`).join('')}
-            </select>
+            <div class="flex items-center gap-2">
+              <select id="set-tahun" class="w-full border border-slate-300 rounded px-3 py-2 bg-white">
+                ${getAcademicYearOptions([m.tahun]).map(y => `<option value="${escapeHtml(y)}" ${m.tahun === y ? 'selected' : ''}>${escapeHtml(y)}</option>`).join('')}
+              </select>
+              <button type="button" onclick="addCustomAcademicYear()" title="Tambah opsi tahun pelajaran baru" class="px-2.5 py-2 rounded border border-[#136048] text-[#136048] hover:bg-[#136048] hover:text-white text-xs font-semibold whitespace-nowrap">+ Tambah</button>
+            </div>
             <span class="text-[10px] text-slate-400">Klik "Simpan Pengaturan" di bawah untuk menerapkan perubahan tahun/semester.</span>
           </div>
           <div>
@@ -2283,7 +2373,12 @@ async function savePengaturanFromForm() {
 
 function renderLembagaKelas() {
   const activeTahun = (state.pesantren && state.pesantren.tahun) || '2026/2027';
-  const yearOptions = ['2024/2025', '2025/2026', '2026/2027', '2027/2028', '2028/2029'].filter(y => y !== activeTahun);
+  const yearOptions = getAcademicYearOptions([activeTahun]).filter(y => y !== activeTahun);
+  const activeNorm = normalizeAcademicYear(activeTahun);
+  const prevYear = activeNorm ? `${Number(activeNorm.slice(0, 4)) - 1}/${Number(activeNorm.slice(0, 4))}` : null;
+  const defaultFromTahun = (prevYear && yearOptions.includes(prevYear))
+    ? prevYear
+    : (yearOptions.includes('2026/2027') ? '2026/2027' : (yearOptions[yearOptions.length - 1] || ''));
   return `
     <div class="bg-white rounded border border-[#e7dcc3] shadow-sm p-5 space-y-4">
       <div class="border-b border-[#e7dcc3] pb-3 flex flex-wrap items-center justify-between gap-3">
@@ -2294,7 +2389,7 @@ function renderLembagaKelas() {
         <div class="flex items-center gap-2 text-xs bg-[#faf6ee] border border-[#e7dcc3] rounded px-2.5 py-1.5">
           <span class="font-semibold text-slate-600">Salin Kelas dari Tahun:</span>
           <select id="copy-cls-from-tahun" class="border border-slate-300 rounded px-2 py-1 bg-white">
-            ${yearOptions.map(y => `<option value="${y}" ${y === '2026/2027' ? 'selected' : ''}>${y}</option>`).join('')}
+            ${yearOptions.map(y => `<option value="${escapeHtml(y)}" ${y === defaultFromTahun ? 'selected' : ''}>${escapeHtml(y)}</option>`).join('')}
           </select>
           <button type="button" onclick="copyClassesFromYear()" class="px-2.5 py-1 rounded bg-[#136048] hover:bg-[#0b3b2e] text-white font-semibold">Salin Daftar Kelas</button>
         </div>

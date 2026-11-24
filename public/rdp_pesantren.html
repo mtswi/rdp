@@ -4903,7 +4903,7 @@ function renderRankingSheetHtml(kelasKode, rows, sortKey = 'rank', sortDir = 'as
   return `
     <div id="ranking-sheet" class="relative overflow-hidden bg-white rounded border border-slate-300 shadow-sm p-6 max-w-[210mm] mx-auto text-slate-900">
       ${renderWatermarkOverlay(m, 1, bakedWm)}
-      <div class="relative z-10">
+      <div class="ranking-sheet-inner relative z-10">
         <!-- KOP SURAT RESMI (MATCH RAPOR) -->
         <div class="border-b-2 border-slate-900 pb-2 mb-3 flex items-center justify-between gap-3">
           <div class="w-20 h-20 flex items-center justify-center flex-shrink-0">
@@ -4926,14 +4926,14 @@ function renderRankingSheetHtml(kelasKode, rows, sortKey = 'rank', sortDir = 'as
               <td class="py-0.5 pr-2 font-semibold w-24 whitespace-nowrap">Kelas</td>
               <td class="py-0.5 pr-2 w-3">:</td>
               <td class="py-0.5 pr-4 font-bold">Kelas ${escapeHtml(kelasKode)}</td>
-              <td class="py-0.5 pr-2 font-semibold w-24 whitespace-nowrap">Wali Kelas</td>
+              <td class="py-0.5 pr-2 font-semibold w-24 whitespace-nowrap">Tahun Ajaran</td>
               <td class="py-0.5 pr-2 w-3">:</td>
-              <td class="py-0.5 font-bold">${escapeHtml(waliNama)}</td>
+              <td class="py-0.5 font-bold">${escapeHtml(m.tahun || '-')}</td>
             </tr>
             <tr>
-              <td class="py-0.5 pr-2 font-semibold whitespace-nowrap">Tahun Ajaran</td>
+              <td class="py-0.5 pr-2 font-semibold whitespace-nowrap">Wali Kelas</td>
               <td class="py-0.5 pr-2">:</td>
-              <td class="py-0.5 pr-4 font-bold">${escapeHtml(m.tahun || '-')}</td>
+              <td class="py-0.5 pr-4 font-bold">${escapeHtml(waliNama)}</td>
               <td class="py-0.5 pr-2 font-semibold whitespace-nowrap">Semester</td>
               <td class="py-0.5 pr-2">:</td>
               <td class="py-0.5 font-bold">${escapeHtml(m.semester || '-')}</td>
@@ -4959,7 +4959,7 @@ function renderRankingSheetHtml(kelasKode, rows, sortKey = 'rank', sortDir = 'as
           <div class="w-64 text-center leading-snug">
             <div>Kebarongan, ${escapeHtml(tglIndo)}</div>
             <div class="font-bold mt-0.5">Wali Kelas ${escapeHtml(kelasKode)},</div>
-            <div class="h-16"></div>
+            <div class="ranking-sign-space h-16"></div>
             ${wali && (wali.nama || wali.namaArab)
               ? `<div class="font-bold underline">${escapeHtml(wali.nama || wali.namaArab)}</div>`
               : `<div class="font-semibold">( ................................ )</div>`}
@@ -5122,6 +5122,15 @@ async function openCetakRankingTab(autoPrint = false) {
     }
     .tabular-nums { font-variant-numeric: tabular-nums; }
     .arabic-font { font-family: "Amiri", "Noto Naskh Arabic", "Traditional Arabic", "Scheherazade New", serif; }
+    /* Samakan lebar konten layar dengan area cetak A4 (210mm - margin 2 x 15mm = 180mm) agar pengukuran auto 1 halaman akurat */
+    @media screen {
+      #ranking-sheet {
+        width: 210mm !important;
+        max-width: 210mm !important;
+        padding: 10mm 15mm !important;
+        box-sizing: border-box !important;
+      }
+    }
   </style>
 </head>
 <body class="bg-[#f7f3ea] text-slate-900 min-h-screen py-4">
@@ -5131,6 +5140,11 @@ async function openCetakRankingTab(autoPrint = false) {
       <div class="text-[11px] text-slate-500">Klik header kolom tabel untuk mengurutkan. Urutan aktif: <strong id="ranking-sort-status" class="text-[#0f4c3a]">${escapeHtml(initialSortLabel)}</strong></div>
     </div>
     <div class="flex flex-wrap items-center gap-2">
+      <label class="flex items-center gap-1.5 px-2.5 py-1.5 rounded border border-[#136048] bg-emerald-50 text-[#0f4c3a] font-semibold cursor-pointer" title="Perkecil jarak baris & ukuran font tabel bila perlu agar muat 1 halaman A4">
+        <input type="checkbox" id="fit-one-page" checked onchange="fitRankingToOnePage()" />
+        Auto 1 halaman
+      </label>
+      <span id="ranking-fit-info" class="text-[11px] text-slate-500"></span>
       <button type="button" onclick="resetRankingSort()" class="px-3 py-1.5 rounded border border-slate-300 hover:bg-slate-100 text-slate-700 font-semibold">Reset Urutan (Rank 1–N)</button>
       <button type="button" onclick="window.print()" class="px-4 py-1.5 rounded bg-[#136048] hover:bg-[#0b3b2e] text-white font-semibold shadow-sm">Cetak / Simpan PDF</button>
       <button type="button" onclick="window.close()" class="px-3 py-1.5 rounded border border-slate-300 hover:bg-slate-100 text-slate-700 font-semibold">Tutup Tab</button>
@@ -5229,6 +5243,73 @@ async function openCetakRankingTab(autoPrint = false) {
         }).join('');
       }
       if (statusEl) statusEl.textContent = getSortLabel(key, dir);
+      fitRankingToOnePage();
+    }
+    // ===== Auto 1 halaman A4: perkecil jarak baris & font tabel bertahap, lalu zoom bila masih belum muat =====
+    const __AUTO_PRINT = ${autoPrint ? 'true' : 'false'};
+    const __MAX_PRINT_PX = Math.floor(277 * 96 / 25.4) - 10; // tinggi area cetak A4 (297mm - margin 2 x 10mm)
+    const __FIT_LEVELS = [
+      { fs: 12, pad: 4, lh: 1.3, sign: 64 },
+      { fs: 11.5, pad: 3, lh: 1.25, sign: 56 },
+      { fs: 11, pad: 2.5, lh: 1.2, sign: 52 },
+      { fs: 10.5, pad: 2, lh: 1.15, sign: 48 },
+      { fs: 10, pad: 1.5, lh: 1.12, sign: 44 },
+      { fs: 9.5, pad: 1, lh: 1.1, sign: 40 },
+      { fs: 9, pad: 0.75, lh: 1.05, sign: 36 },
+      { fs: 8.5, pad: 0.5, lh: 1.02, sign: 34 },
+      { fs: 8, pad: 0.5, lh: 1.0, sign: 32 }
+    ];
+    function applyFitLevel(lv) {
+      let st = document.getElementById('ranking-fit-style');
+      if (!st) {
+        st = document.createElement('style');
+        st.id = 'ranking-fit-style';
+        document.head.appendChild(st);
+      }
+      st.textContent = lv
+        ? '.ranking-table{font-size:' + lv.fs + 'px !important}' +
+          '.ranking-table th,.ranking-table td{padding-top:' + lv.pad + 'px !important;padding-bottom:' + lv.pad + 'px !important;line-height:' + lv.lh + ' !important}' +
+          '.ranking-sign-space{height:' + lv.sign + 'px !important}'
+        : '';
+    }
+    function fitRankingToOnePage() {
+      const inner = document.querySelector('.ranking-sheet-inner');
+      const info = document.getElementById('ranking-fit-info');
+      if (!inner) return;
+      inner.style.zoom = '1';
+      const box = document.getElementById('fit-one-page');
+      if (box && !box.checked) {
+        applyFitLevel(null);
+        if (info) info.textContent = '';
+        return;
+      }
+      let used = __FIT_LEVELS[0];
+      for (let i = 0; i < __FIT_LEVELS.length; i++) {
+        used = __FIT_LEVELS[i];
+        applyFitLevel(used);
+        if (inner.scrollHeight <= __MAX_PRINT_PX) break;
+      }
+      let zoom = 1;
+      const h = inner.scrollHeight;
+      if (h > __MAX_PRINT_PX) {
+        zoom = __MAX_PRINT_PX / h;
+        inner.style.zoom = zoom.toFixed(4);
+      }
+      if (info) {
+        info.textContent = (used === __FIT_LEVELS[0] && zoom === 1)
+          ? 'Sudah muat 1 halaman'
+          : ('Font tabel ' + used.fs + 'px' + (zoom < 1 ? ', skala ' + Math.round(zoom * 100) + '%' : ''));
+      }
+    }
+    window.addEventListener('load', function() {
+      setTimeout(function() {
+        fitRankingToOnePage();
+        if (__AUTO_PRINT) setTimeout(function() { window.print(); }, 200);
+      }, 250);
+    });
+    window.addEventListener('beforeprint', fitRankingToOnePage);
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(function() { fitRankingToOnePage(); });
     }
     function sortRankingTable(colKey) {
       if (__RANKING_STATE.sortKey === colKey) {
@@ -5245,7 +5326,6 @@ async function openCetakRankingTab(autoPrint = false) {
       renderTable();
     }
   <\/script>
-  ${autoPrint ? `<script>window.addEventListener('load', () => setTimeout(() => window.print(), 350));<\/script>` : ''}
 </body>
 </html>`;
 

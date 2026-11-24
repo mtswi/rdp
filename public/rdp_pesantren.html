@@ -66,6 +66,7 @@
       }
       .rapor-table {
         border-collapse: collapse !important;
+        table-layout: fixed !important;
         width: 100% !important;
         border: 1pt solid #000 !important;
       }
@@ -85,6 +86,7 @@
     }
     .rapor-table {
       border-collapse: collapse !important;
+      table-layout: fixed !important;
       width: 100% !important;
       border: 1px solid #1e293b !important;
     }
@@ -4316,6 +4318,7 @@ async function openRaporInNewTab(studentsList, autoPrint = false) {
       }
       .rapor-table {
         border-collapse: collapse !important;
+        table-layout: fixed !important;
         width: 100% !important;
         border: 1pt solid #000 !important;
       }
@@ -4335,6 +4338,7 @@ async function openRaporInNewTab(studentsList, autoPrint = false) {
     }
     .rapor-table {
       border-collapse: collapse !important;
+      table-layout: fixed !important;
       width: 100% !important;
       border: 1px solid #1e293b !important;
     }
@@ -4530,6 +4534,18 @@ function renderSingleRaporSheet(s, isLastPage, printAssets = null) {
     `;
   };
 
+  const raporColgroup = `
+    <colgroup>
+      <col style="width: 6%;" />
+      <col style="width: 24%;" />
+      <col style="width: 8.5%;" />
+      <col style="width: 8.5%;" />
+      <col style="width: 9.5%;" />
+      <col style="width: 15.5%;" />
+      <col style="width: 28%;" />
+    </colgroup>
+  `;
+
   return `
     <div dir="rtl" class="rapor-sheet-a4 relative overflow-hidden bg-white rounded border border-slate-300 shadow-sm p-4 max-w-[210mm] mx-auto arabic-font text-slate-900 leading-tight flex flex-col ${!isLastPage ? 'rapor-page-break mb-6 print:mb-0' : ''}">
       ${renderWatermarkOverlay(m, 1, bakedWm)}
@@ -4559,15 +4575,16 @@ function renderSingleRaporSheet(s, isLastPage, printAssets = null) {
           </div>
 
           <div class="text-[17.5px] font-bold mb-1 leading-tight">أولاً: العلوم العامة</div>
-          <table class="rapor-table w-full border border-slate-800 border-collapse text-[16.5px] mb-2">
+          <table class="rapor-table table-fixed w-full border border-slate-800 border-collapse text-[16.5px] mb-2">
+            ${raporColgroup}
             <thead>
               <tr class="bg-emerald-50/80 border-b border-slate-800 font-bold text-center">
-                <th class="border-l border-slate-700 w-9">رقم</th>
+                <th class="border-l border-slate-700">رقم</th>
                 <th class="border-l border-slate-700">اسم المادة</th>
-                <th class="border-l border-slate-700 w-14">الساعات</th>
-                <th class="border-l border-slate-700 w-14">الدرجة</th>
-                <th class="border-l border-slate-700 w-16">المجموع</th>
-                <th class="border-l border-slate-700 w-24">تقدير الدرجات</th>
+                <th class="border-l border-slate-700">الساعات</th>
+                <th class="border-l border-slate-700">الدرجة</th>
+                <th class="border-l border-slate-700">المجموع</th>
+                <th class="border-l border-slate-700">تقدير الدرجات</th>
                 <th class="font-sans text-[12px]">Mata Pelajaran</th>
               </tr>
             </thead>
@@ -4575,15 +4592,16 @@ function renderSingleRaporSheet(s, isLastPage, printAssets = null) {
           </table>
 
           <div class="text-[17.5px] font-bold mb-1 leading-tight">ثانياً: العلوم الشرعية</div>
-          <table class="rapor-table w-full border border-slate-800 border-collapse text-[16.5px] mb-2">
+          <table class="rapor-table table-fixed w-full border border-slate-800 border-collapse text-[16.5px] mb-2">
+            ${raporColgroup}
             <thead>
               <tr class="bg-emerald-50/80 border-b border-slate-800 font-bold text-center">
-                <th class="border-l border-slate-700 w-9">رقم</th>
+                <th class="border-l border-slate-700">رقم</th>
                 <th class="border-l border-slate-700">اسم المادة</th>
-                <th class="border-l border-slate-700 w-14">الساعات</th>
-                <th class="border-l border-slate-700 w-14">الدرجة</th>
-                <th class="border-l border-slate-700 w-16">المجموع</th>
-                <th class="border-l border-slate-700 w-24">تقدير الدرجات</th>
+                <th class="border-l border-slate-700">الساعات</th>
+                <th class="border-l border-slate-700">الدرجة</th>
+                <th class="border-l border-slate-700">المجموع</th>
+                <th class="border-l border-slate-700">تقدير الدرجات</th>
                 <th class="font-sans text-[12px]">Mata Pelajaran</th>
               </tr>
             </thead>

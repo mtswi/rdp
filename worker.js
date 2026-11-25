@@ -10,6 +10,35 @@ const SECURITY_HEADERS = {
   'Permissions-Policy': 'camera=(), microphone=(), geolocation=()'
 };
 
+const WIB_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+function formatWibTimestamp(date = new Date()) {
+  const wib = new Date(date.getTime() + 7 * 60 * 60 * 1000);
+  const dd = String(wib.getUTCDate()).padStart(2, '0');
+  const mmm = WIB_MONTHS[wib.getUTCMonth()] || 'Jan';
+  const yyyy = wib.getUTCFullYear();
+  const hh = String(wib.getUTCHours()).padStart(2, '0');
+  const mi = String(wib.getUTCMinutes()).padStart(2, '0');
+  return `${dd} ${mmm} ${yyyy}, ${hh}:${mi} WIB`;
+}
+
+function roleToActivityLevel(role) {
+  if (role === 'admin') return 'Admin';
+  if (role === 'siswa') return 'Siswa';
+  return 'Guru';
+}
+
+async function logActivity(db, userLike, activityText) {
+  try {
+    const actor = String((userLike && (userLike.displayName || userLike.username)) || 'Sistem').trim().slice(0, 120) || 'Sistem';
+    const level = roleToActivityLevel(userLike && userLike.role);
+    const cleanActivity = String(activityText || '').trim().slice(0, 500);
+    if (!cleanActivity) return;
+    await db.prepare('INSERT INTO activities (user, level, activity, time) VALUES (?, ?, ?, ?)')
+      .bind(actor, level, cleanActivity, formatWibTimestamp())
+      .run();
+  } catch (_) { /* fail-safe: jangan gagalkan request utama */ }
+}
+
 // Rate limiting dual-bucket untuk POST /api/login & PUT /api/me/password
 const loginAttempts = new Map();
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
@@ -428,7 +457,7 @@ async function getFullState(db, opts = {}) {
     `).bind(activeTahun),
     db.prepare('SELECT studentId, sakit, izin, alpa FROM student_attendance WHERE tahun = ? AND semester = ?').bind(activeTahun, activeSemester),
     db.prepare('SELECT studentId, subjectId, score FROM scores WHERE tahun = ? AND semester = ?').bind(activeTahun, activeSemester),
-    db.prepare('SELECT user, level, activity, time FROM activities ORDER BY id DESC LIMIT 30')
+    db.prepare('SELECT user, level, activity, time FROM activities ORDER BY id DESC LIMIT 50')
   ]);
 
   const classes = clsRes.results || [];
@@ -695,6 +724,7 @@ async function handleRequest(request, env) {
           teacherId: userRow.teacherId,
           studentId: userRow.studentId
         };
+        await logActivity(env.DB, user, 'Login ke aplikasi RDP');
         return jsonResponse(200, { ok: true, user }, {
           'Set-Cookie': buildSessionCookie(request, token, SESSION_TTL_SEC)
         });
@@ -2019,7 +2049,7 @@ async function handleRequest(request, env) {
         if ((reqTahun && String(reqTahun) !== activeTahun) || (reqSemester && String(reqSemester) !== activeSemester)) {
           return jsonResponse(409, { error: `Periode aktif berubah (${activeTahun} ${activeSemester}). Muat ulang halaman sebelum mengirim nilai.` });
         }
-        const row = await env.DB.prepare('SELECT id, teacherId, tahun FROM assignments WHERE id = ? AND tahun = ?').bind(id, activeTahun).first();
+        const row = await env.DB.prepare('SELECT id, teacherId, tahun, kelas, kode, mapel FROM assignments WHERE id = ? AND tahun = ?').bind(id, activeTahun).first();
         if (!row) {
           return jsonResponse(404, { error: 'Penugasan tidak ditemukan pada tahun pelajaran aktif' });
         }
@@ -2035,6 +2065,14 @@ async function handleRequest(request, env) {
           `).bind(id, activeTahun, activeSemester, sentVal),
           env.DB.prepare('UPDATE assignments SET sent = ? WHERE id = ?').bind(sentVal, id)
         ]);
+        const subRow = await env.DB.prepare('SELECT namaId FROM subjects WHERE namaArab = ? LIMIT 1').bind(row.mapel).first().catch(() => null);
+        const mapelLabel = (subRow && subRow.namaId) ? subRow.namaId : row.mapel;
+        const kelasLabel = row.kelas || ('Kelas ' + row.kode);
+        await logActivity(
+          env.DB,
+          user,
+          sent ? `Mengirim & mengunci nilai ${mapelLabel} ${kelasLabel}` : `Membuka kembali draf nilai ${mapelLabel} ${kelasLabel}`
+        );
         return jsonResponse(200, { ok: true });
       }
 
@@ -2078,7 +2116,7 @@ async function handleRequest(request, env) {
 
         const batchReads = [
           env.DB.prepare('SELECT studentId AS id, kelas FROM student_enrollments WHERE tahun = ?').bind(activeTahun),
-          env.DB.prepare('SELECT id, namaArab FROM subjects')
+          env.DB.prepare('SELECT id, namaArab, namaId FROM subjects')
         ];
         if (user.role === 'guru') {
           batchReads.push(
@@ -2089,6 +2127,7 @@ async function handleRequest(request, env) {
         const readRes = await env.DB.batch(batchReads);
         const stMap = new Map((readRes[0].results || []).map(r => [r.id, r.kelas]));
         const subMap = new Map((readRes[1].results || []).map(r => [r.id, r.namaArab]));
+        const subLabelMap = new Map((readRes[1].results || []).map(r => [r.id, r.namaId || r.namaArab]));
         const guruAssignsByKey = new Map();
         const sentSet = new Set();
         if (user.role === 'guru') {
@@ -2103,6 +2142,7 @@ async function handleRequest(request, env) {
         }
 
         const stmts = [];
+        const savedPairs = new Set();
         for (const item of list) {
           const sid = Number(item.studentId);
           const subId = Number(item.subjectId);
@@ -2130,6 +2170,7 @@ async function handleRequest(request, env) {
               return jsonResponse(409, { error: 'Nilai sudah dikirim dan terkunci. Klik "Batal Kirim" terlebih dahulu untuk mengubah nilai.' });
             }
           }
+          savedPairs.add(`${kelas}||${subLabelMap.get(subId) || mapel}`);
           if (parsed.empty) {
             stmts.push(
               env.DB.prepare('DELETE FROM scores WHERE studentId = ? AND subjectId = ? AND tahun = ? AND semester = ?')
@@ -2145,6 +2186,14 @@ async function handleRequest(request, env) {
           }
         }
         await runSingleOrChunkedBatch(env.DB, stmts, 900);
+        if (list.length > 0) {
+          let actMsg = `Menyimpan nilai (${list.length} entri)`;
+          if (savedPairs.size === 1) {
+            const [kls, lbl] = [...savedPairs][0].split('||');
+            actMsg = `Menyimpan nilai ${lbl} Kelas ${kls} (${list.length} santri)`;
+          }
+          await logActivity(env.DB, user, actMsg);
+        }
         return jsonResponse(200, { ok: true });
       }
 

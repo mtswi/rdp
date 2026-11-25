@@ -663,7 +663,7 @@ function getFullState(opts = {}) {
   const attMap = new Map(attRows.map(r => [r.studentId, r]));
   const rawScores = db.prepare('SELECT studentId, subjectId, score FROM scores WHERE tahun = ? AND semester = ?')
     .all(activeTahun, activeSemester);
-  const activities = db.prepare('SELECT user, level, activity, time FROM activities ORDER BY id DESC LIMIT 30').all();
+  const activities = db.prepare('SELECT user, level, activity, time FROM activities ORDER BY id DESC LIMIT 50').all();
 
   const scoreMap = new Map();
   for (const row of rawScores) {

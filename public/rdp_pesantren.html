@@ -457,6 +457,31 @@
         </div>
       </header>
 
+      <!-- MODAL TAMBAH PENUGASAN MENGAJAR (3 LANGKAH + CARD KELAS) -->
+      <div id="assign-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="assign-modal-title" onclick="if(event.target===this) closeAssignModal()" class="no-print hidden fixed inset-0 z-[75] bg-black/50 backdrop-blur-[1px] flex items-center justify-center p-4">
+        <div class="w-full max-w-3xl max-h-[90vh] bg-white rounded-xl border border-[#e7dcc3] shadow-2xl flex flex-col overflow-hidden" onclick="event.stopPropagation()">
+          <div class="px-5 py-3.5 bg-[#fbf8f1] border-b border-[#e7dcc3] flex items-center justify-between gap-3 flex-shrink-0">
+            <div>
+              <h3 id="assign-modal-title" class="text-sm sm:text-base font-bold text-[#0f4c3a]">Tambah Penugasan Mengajar</h3>
+              <p class="text-xs text-slate-500 mt-0.5">1. Pilih guru, 2. pilih mata pelajaran, lalu 3. centang card kelas yang diampu.</p>
+            </div>
+            <button type="button" onclick="closeAssignModal()" class="p-1.5 rounded-lg text-slate-400 hover:text-[#0f4c3a] hover:bg-[#efe6d0]/60 transition" aria-label="Tutup dialog penugasan">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+          </div>
+          <form id="assign-modal-form" onsubmit="addAssignment(event)" class="flex flex-col flex-1 min-h-0">
+            <div id="assign-modal-body" class="p-5 overflow-y-auto space-y-4 text-xs flex-1"></div>
+            <div class="px-5 py-3 bg-[#fbf8f1] border-t border-[#e7dcc3] flex flex-wrap items-center justify-between gap-2 flex-shrink-0">
+              <span id="assign-modal-hint" class="text-xs text-slate-500">Pilih Guru &amp; Mata Pelajaran untuk melihat nama pengampu tiap kelas.</span>
+              <div class="flex items-center gap-2 ml-auto">
+                <button type="button" onclick="closeAssignModal()" class="px-3.5 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition">Batal</button>
+                <button id="btn-submit-assign" type="submit" class="px-4 py-2 rounded-lg bg-[#0f4c3a] hover:bg-[#0b3b2e] text-[#f3e3b0] border-b-2 border-[#c9a227] text-xs font-bold shadow-sm transition">+ Tugaskan</button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+
       <!-- ACCESSIBLE REUSABLE MODAL (CONFIRM / INPUT) -->
       <div id="rdp-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="rdp-modal-title" onclick="if(event.target===this) closeRdpModal(null)" class="no-print hidden fixed inset-0 z-[80] bg-black/50 backdrop-blur-[1px] flex items-center justify-center p-4">
         <div class="w-full max-w-md bg-white rounded-xl border border-[#e7dcc3] shadow-2xl overflow-hidden" onclick="event.stopPropagation()">
@@ -1669,7 +1694,7 @@ function getAllowedPagesForCurrentMode() {
   if (state.mode === 'siswa') return ['siswa-rapor', 'siswa-profil', 'siswa-password'];
   if (state.mode === 'guru') {
     const base = ['dashboard', 'bobot', 'penilaian'];
-    if (getWaliKelasKode()) base.push('status-nilai-kelas', 'data-siswa', 'rapor-siswa', 'legger');
+    if (getWaliKelasKode()) base.push('status-nilai-kelas', 'data-siswa', 'rapor-siswa', 'cetak-ranking', 'legger');
     return base;
   }
   return null; // proktor/admin can access all pages
@@ -1684,7 +1709,7 @@ function navigate(page, extra = {}) {
   if (extra.kelas) state.selectedKelasMengajar = extra.kelas;
   if (extra.mapel) state.selectedMapelMengajar = extra.mapel;
   if (page === 'users') loadUsersList();
-  if (['rapor-siswa', 'legger', 'kejuaraan', 'status-nilai', 'status-nilai-kelas', 'pengampu-kelas', 'siswa-rapor', 'penilaian'].includes(page)) {
+  if (['rapor-siswa', 'cetak-ranking', 'legger', 'kejuaraan', 'status-nilai', 'status-nilai-kelas', 'pengampu-kelas', 'siswa-rapor', 'penilaian'].includes(page)) {
     refreshStateFromServer(true, page === 'penilaian');
   }
   if (window.innerWidth < 768) {
@@ -1771,7 +1796,7 @@ function renderMobileBottomNav() {
       { label: 'Menu', action: 'toggleSidebar()', icon: svgIcons.menu, active: state.sidebarOpenMobile },
       { label: 'Beranda', action: "navigate('dashboard')", icon: svgIcons.dash, active: state.page === 'dashboard' },
       { label: 'Santri', action: "navigate('data-siswa')", icon: svgIcons.users, active: state.page === 'data-siswa' },
-      { label: 'Rapor', action: "navigate('rapor-siswa')", icon: svgIcons.book, active: ['rapor-siswa', 'legger', 'kejuaraan'].includes(state.page) },
+      { label: 'Rapor', action: "navigate('rapor-siswa')", icon: svgIcons.book, active: ['rapor-siswa', 'cetak-ranking', 'legger', 'kejuaraan'].includes(state.page) },
       { label: 'Status', action: "navigate('status-nilai')", icon: svgIcons.cls, active: state.page === 'status-nilai' }
     ];
   } else if (state.mode === 'siswa') {
@@ -1789,7 +1814,7 @@ function renderMobileBottomNav() {
       { label: 'Input Nilai', action: "navigate('penilaian')", icon: svgIcons.cls, active: state.page === 'penilaian' }
     ];
     if (waliKelas) {
-      items.push({ label: `Wali ${escapeHtml(waliKelas)}`, action: "navigate('status-nilai-kelas')", icon: svgIcons.book, active: ['status-nilai-kelas', 'rapor-siswa', 'data-siswa', 'legger'].includes(state.page) });
+      items.push({ label: `Wali ${escapeHtml(waliKelas)}`, action: "navigate('status-nilai-kelas')", icon: svgIcons.book, active: ['status-nilai-kelas', 'rapor-siswa', 'cetak-ranking', 'data-siswa', 'legger'].includes(state.page) });
     }
   }
 
@@ -1835,6 +1860,7 @@ function renderSidebar() {
       ])}
       ${navGroup('rapor', 'Rapor', svgIcons.book, [
         { label: 'Cetak Rapor Lokal (PDF)', page: 'rapor-siswa' },
+        { label: 'Cetak Ranking', page: 'cetak-ranking' },
         { label: 'Ledger Excel', page: 'legger' },
         { label: 'Kejuaraan', page: 'kejuaraan' },
         { label: 'Status Nilai', page: 'status-nilai' }
@@ -1916,6 +1942,7 @@ function renderSidebar() {
         ${navGroup('walikelas', waliKelas, svgIcons.users, [
           { label: 'Data Santri', page: 'data-siswa' },
           { label: 'Rapor Santri (PDF)', page: 'rapor-siswa' },
+          { label: 'Cetak Ranking', page: 'cetak-ranking' },
           { label: 'Ledger Kelas (Excel)', page: 'legger' }
         ])}
       ` : ''}
@@ -1945,7 +1972,8 @@ const PAGE_META = {
   'data-siswa': { title: 'Data Santri' },
   penilaian: { title: 'Input Nilai Santri' },
   bobot: { title: 'Bobot Penilaian' },
-  'rapor-siswa': { title: 'Cetak Rapor & Ranking' },
+  'rapor-siswa': { title: 'Cetak Rapor Lokal' },
+  'cetak-ranking': { title: 'Cetak Ranking' },
   legger: { title: 'Ledger Excel' },
   kejuaraan: { title: 'Kejuaraan & SK' },
   'status-nilai': { title: 'Status Pengumpulan Nilai' },
@@ -1997,6 +2025,7 @@ function renderPage() {
   else if (state.page === 'penilaian') el.innerHTML = renderPenilaian();
   else if (state.page === 'bobot') el.innerHTML = renderBobot();
   else if (state.page === 'rapor-siswa') el.innerHTML = renderRaporLokal();
+  else if (state.page === 'cetak-ranking') el.innerHTML = renderCetakRankingPage();
   else if (state.page === 'legger') el.innerHTML = renderLeggerPage();
   else if (state.page === 'kejuaraan') el.innerHTML = renderKejuaraanPage();
   else if (state.page === 'status-nilai') el.innerHTML = renderStatusNilai();
@@ -2101,7 +2130,8 @@ function renderProktorDashboard() {
             </div>
             <div class="flex flex-wrap items-center gap-2">
               <button type="button" onclick="navigate('status-nilai')" class="px-3 py-1.5 rounded-lg border-2 border-[#136048] bg-white hover:bg-[#f0f7f4] text-[#0f4c3a] text-xs font-bold transition">Status Nilai</button>
-              <button type="button" onclick="navigate('rapor-siswa')" class="px-3.5 py-1.5 rounded-lg bg-[#0f4c3a] hover:bg-[#0b3b2e] text-[#f3e3b0] border-b-2 border-[#c9a227] text-xs font-bold shadow-sm transition">Cetak Rapor &amp; Ranking</button>
+              <button type="button" onclick="navigate('cetak-ranking')" class="px-3 py-1.5 rounded-lg border border-[#136048] bg-white hover:bg-[#f0f7f4] text-[#0f4c3a] text-xs font-semibold transition">Cetak Ranking</button>
+              <button type="button" onclick="navigate('rapor-siswa')" class="px-3.5 py-1.5 rounded-lg bg-[#0f4c3a] hover:bg-[#0b3b2e] text-[#f3e3b0] border-b-2 border-[#c9a227] text-xs font-bold shadow-sm transition">Cetak Rapor (PDF)</button>
             </div>
           </div>
         </div>
@@ -3944,7 +3974,10 @@ function renderGuruDashboard() {
                 <span>Status Nilai Kelas ${escapeHtml(waliKelasKode)}</span><span>&rarr;</span>
               </button>
               <button type="button" onclick="navigate('rapor-siswa')" class="w-full px-3 py-2 rounded-lg bg-[#0f4c3a] hover:bg-[#0b3b2e] text-[#f3e3b0] border-b-2 border-[#c9a227] text-xs font-bold text-left transition flex items-center justify-between">
-                <span>Cetak Rapor &amp; Ranking</span><span>&rarr;</span>
+                <span>Cetak Rapor (PDF)</span><span>&rarr;</span>
+              </button>
+              <button type="button" onclick="navigate('cetak-ranking')" class="w-full px-3 py-2 rounded-lg border border-[#136048] bg-white hover:bg-[#f0f7f4] text-[#0f4c3a] text-xs font-bold text-left transition flex items-center justify-between">
+                <span>Cetak Ranking</span><span>&rarr;</span>
               </button>
               <button type="button" onclick="navigate('legger')" class="w-full px-3 py-2 rounded-lg border border-[#e7dcc3] bg-white hover:bg-[#f3ead6] text-[#0f4c3a] text-xs font-semibold text-left transition flex items-center justify-between">
                 <span>Ledger Kelas (Excel)</span><span>&rarr;</span>
@@ -4044,12 +4077,174 @@ function setAssignSort(key) {
   renderPage();
 }
 
+let _assignModalPrevFocus = null;
+let _assignModalLastMapel = '';
+
+function renderAssignKelasCards(teacherId, mapelArab, preserveChecked = new Set()) {
+  const sortedClasses = sortClasses(state.classes || []);
+  const tingkatList = [...new Set(sortedClasses.map(c => String(c.tingkat || '')))].sort((a, b) => Number(a) - Number(b));
+  if (sortedClasses.length === 0) {
+    return `<div class="p-6 text-center text-xs text-slate-500 italic bg-[#fbf8f1] rounded-lg border border-dashed border-[#e7dcc3]">Belum ada kelas pada tahun pelajaran aktif.</div>`;
+  }
+  const colsCount = Math.min(3, Math.max(1, tingkatList.length));
+  return `
+    <div class="grid grid-cols-1 sm:grid-cols-2 ${colsCount === 3 ? 'lg:grid-cols-3' : (colsCount === 2 ? 'lg:grid-cols-2' : 'lg:grid-cols-1')} gap-3 max-h-[44vh] overflow-y-auto pr-1">
+      ${tingkatList.map(tk => {
+        const clsInTk = sortedClasses.filter(c => String(c.tingkat || '') === tk);
+        return `
+          <div class="space-y-2">
+            <div class="text-xs font-bold text-center text-[#0f4c3a] bg-[#fbf8f1] border border-[#e7dcc3] rounded-lg py-1.5">Tingkat ${escapeHtml(tk)}</div>
+            <div class="space-y-2">
+              ${clsInTk.map(c => {
+                const existing = mapelArab
+                  ? (state.assignments || []).filter(a => a.kode === c.kode && a.mapel === mapelArab)
+                  : [];
+                const pengampuNames = existing.map(a => {
+                  const t = (state.teachers || []).find(x => x.id === a.teacherId);
+                  return t ? t.nama : a.teacherId;
+                });
+                const isAssignedToSelectedTeacher = Boolean(teacherId && mapelArab && existing.some(a => a.teacherId === teacherId));
+                const isOtherPengampu = !isAssignedToSelectedTeacher && pengampuNames.length > 0;
+                const isChecked = isAssignedToSelectedTeacher || preserveChecked.has(c.kode);
+                const pengampuText = mapelArab
+                  ? (pengampuNames.length > 0 ? pengampuNames.join(', ') : 'Belum ada pengampu')
+                  : 'Pilih mapel dahulu';
+
+                let cardCls = 'flex items-start gap-2.5 p-2.5 rounded-lg border transition ';
+                let pengampuCls = 'text-[11px] mt-0.5 truncate ';
+                if (isAssignedToSelectedTeacher) {
+                  cardCls += 'border-emerald-300 bg-emerald-50/80 cursor-not-allowed opacity-90';
+                  pengampuCls += 'font-semibold text-[#0f4c3a]';
+                } else if (isOtherPengampu) {
+                  cardCls += 'border-amber-300 bg-amber-50/60 hover:bg-amber-50 cursor-pointer';
+                  pengampuCls += 'font-semibold text-amber-800';
+                } else {
+                  cardCls += 'border-[#e7dcc3] bg-white hover:bg-[#fbf8f1] cursor-pointer';
+                  pengampuCls += 'text-slate-400 italic';
+                }
+
+                return `
+                  <label class="${cardCls}">
+                    <input type="checkbox" name="assign-kelas-cb" value="${escapeHtml(c.kode)}"
+                      ${isChecked ? 'checked' : ''}
+                      ${isAssignedToSelectedTeacher ? 'disabled' : 'onchange="updateAssignSubmitCount()"'}
+                      class="mt-0.5 rounded border-slate-300 text-[#136048] focus:ring-[#136048] flex-shrink-0" />
+                    <span class="min-w-0 flex-1">
+                      <span class="block font-bold text-xs ${isAssignedToSelectedTeacher ? 'text-[#0f4c3a]' : 'text-slate-900'}">Kelas ${escapeHtml(c.kode)}</span>
+                      <span class="block ${pengampuCls}" title="${escapeHtml(pengampuText)}">${escapeHtml(pengampuText)}</span>
+                    </span>
+                  </label>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
+function renderAssignModalBody(selectedTeacherId = '', selectedMapel = '') {
+  const sortedActiveTeachers = sortByLabel(getActiveTeachers(), t => t.nama);
+  const sortedSubjects = sortByLabel((state.subjects || []).filter(s => s.active !== false), s => s.namaId);
+  _assignModalLastMapel = selectedMapel || '';
+
+  return `
+    <div class="grid sm:grid-cols-2 gap-3.5">
+      <div>
+        <label for="assign-teacher" class="block font-bold text-[#0f4c3a] mb-1">1. Pilih Guru / Ustadz</label>
+        <select id="assign-teacher" required onchange="onAssignModalChange()" class="w-full border border-[#e7dcc3] rounded-lg px-3 py-2 bg-white font-semibold text-slate-800">
+          <option value="" ${!selectedTeacherId ? 'selected' : ''}>-- Pilih Guru / Ustadz --</option>
+          ${sortedActiveTeachers.map(t => `<option value="${escapeHtml(t.id)}" ${t.id === selectedTeacherId ? 'selected' : ''}>${escapeHtml(t.nama)}</option>`).join('')}
+        </select>
+      </div>
+      <div>
+        <label for="assign-mapel" class="block font-bold text-[#0f4c3a] mb-1">2. Pilih Mata Pelajaran</label>
+        <select id="assign-mapel" required onchange="onAssignModalChange()" class="w-full border border-[#e7dcc3] rounded-lg px-3 py-2 bg-white font-semibold text-slate-800">
+          <option value="" ${!selectedMapel ? 'selected' : ''}>-- Pilih Mata Pelajaran --</option>
+          ${sortedSubjects.map(s => `<option value="${escapeHtml(s.namaArab)}" ${s.namaArab === selectedMapel ? 'selected' : ''}>${escapeHtml(s.namaId)} (${escapeHtml(s.namaArab)})</option>`).join('')}
+        </select>
+      </div>
+    </div>
+
+    <div class="bg-[#fbf8f1] rounded-xl border border-[#e7dcc3] p-3.5 space-y-3">
+      <div class="flex flex-wrap items-center justify-between gap-2 border-b border-[#e7dcc3] pb-2">
+        <span class="font-bold text-[#0f4c3a]">3. Pilih Kelas yang Diampu</span>
+        <div class="flex items-center gap-3 text-xs">
+          <button type="button" onclick="toggleAssignModalKelas(true)" class="text-[#136048] font-semibold hover:underline">Pilih Semua</button>
+          <button type="button" onclick="toggleAssignModalKelas(false)" class="text-slate-500 hover:underline">Kosongkan</button>
+        </div>
+      </div>
+      <div id="assign-kelas-cards-wrap">
+        ${renderAssignKelasCards(selectedTeacherId, selectedMapel)}
+      </div>
+    </div>
+  `;
+}
+
+function updateAssignSubmitCount() {
+  const btn = document.getElementById('btn-submit-assign');
+  const wrap = document.getElementById('assign-kelas-cards-wrap');
+  if (!btn || !wrap) return;
+  const count = wrap.querySelectorAll('input[name="assign-kelas-cb"]:checked:not(:disabled)').length;
+  btn.textContent = count > 0 ? `+ Tugaskan (${count} Kelas)` : '+ Tugaskan';
+}
+
+function onAssignModalChange() {
+  const teacherId = document.getElementById('assign-teacher')?.value || '';
+  const mapelArab = document.getElementById('assign-mapel')?.value || '';
+  const wrap = document.getElementById('assign-kelas-cards-wrap');
+  if (!wrap) return;
+  const preserve = new Set();
+  if (mapelArab === _assignModalLastMapel) {
+    wrap.querySelectorAll('input[name="assign-kelas-cb"]:checked:not(:disabled)').forEach(cb => {
+      preserve.add(cb.value);
+    });
+  }
+  _assignModalLastMapel = mapelArab;
+  wrap.innerHTML = renderAssignKelasCards(teacherId, mapelArab, preserve);
+  updateAssignSubmitCount();
+}
+
+function toggleAssignModalKelas(checked) {
+  const wrap = document.getElementById('assign-kelas-cards-wrap');
+  if (!wrap) return;
+  wrap.querySelectorAll('input[name="assign-kelas-cb"]:not(:disabled)').forEach(cb => {
+    cb.checked = checked;
+  });
+  updateAssignSubmitCount();
+}
+
+function openAssignModal() {
+  const overlay = document.getElementById('assign-modal-overlay');
+  const body = document.getElementById('assign-modal-body');
+  if (!overlay || !body) return;
+  _assignModalPrevFocus = document.activeElement;
+  const defaultTeacher = (state.filterAssignTeacherId && state.filterAssignTeacherId !== 'all')
+    ? state.filterAssignTeacherId
+    : '';
+  body.innerHTML = renderAssignModalBody(defaultTeacher, '');
+  updateAssignSubmitCount();
+  overlay.classList.remove('hidden');
+  setTimeout(() => {
+    const sel = document.getElementById(defaultTeacher ? 'assign-mapel' : 'assign-teacher');
+    if (sel) sel.focus();
+  }, 15);
+}
+
+function closeAssignModal() {
+  const overlay = document.getElementById('assign-modal-overlay');
+  if (overlay) overlay.classList.add('hidden');
+  try {
+    if (_assignModalPrevFocus && typeof _assignModalPrevFocus.focus === 'function') {
+      _assignModalPrevFocus.focus();
+    }
+  } catch (_) {}
+  _assignModalPrevFocus = null;
+}
+
 function renderMengajarProktor() {
   const sortedTeachers = sortByLabel(state.teachers, t => t.nama);
-  const sortedClasses = sortClasses(state.classes);
-  const tingkatList = [...new Set(sortedClasses.map(c => String(c.tingkat || '')))].sort((a, b) => Number(a) - Number(b));
-  const sortedActiveTeachers = sortByLabel(getActiveTeachers(), t => t.nama);
-  const sortedSubjects = sortByLabel(state.subjects.filter(s => s.active !== false), s => s.namaId);
   let filterTid = state.filterAssignTeacherId || 'all';
   if (filterTid !== 'all' && !state.teachers.some(t => t.id === filterTid)) {
     filterTid = 'all';
@@ -4118,84 +4313,25 @@ function renderMengajarProktor() {
   };
 
   return `
-    <div class="bg-white rounded border border-[#e7dcc3] shadow-sm p-5 space-y-4">
-      <div class="border-b border-[#e7dcc3] pb-3">
-        <h2 class="font-bold text-sm text-[#0f4c3a]">Setting Mengajar Ustadz / Guru</h2>
-        <p class="text-xs text-slate-500">Pilih nama guru, lalu centang kelas (kolom kiri) dan mata pelajaran (kolom kanan) yang diampu.</p>
+    <div class="rdp-card p-5 space-y-4">
+      <div class="border-b border-[#e7dcc3] pb-3.5 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 class="font-bold text-base sm:text-lg text-[#0f4c3a]">Setting Mengajar Ustadz / Guru</h1>
+          <p class="text-xs text-slate-600 mt-0.5">Kelola penugasan guru, mata pelajaran, dan kelas yang diampu.</p>
+        </div>
+        <button type="button" onclick="openAssignModal()" class="px-4 py-2 rounded-lg bg-[#0f4c3a] hover:bg-[#0b3b2e] text-[#f3e3b0] border-b-2 border-[#c9a227] text-xs font-bold shadow-sm transition whitespace-nowrap">
+          + Tambah Penugasan
+        </button>
       </div>
-
-      <form onsubmit="addAssignment(event)" class="bg-[#fbf8f1] p-4 rounded border border-[#e7dcc3] space-y-4 text-xs">
-        <div class="flex flex-wrap items-end justify-between gap-3">
-          <div class="flex-1 min-w-[240px] max-w-md">
-            <label class="block font-bold text-[#0f4c3a] mb-1">1. Pilih Nama Guru / Ustadz</label>
-            <select id="assign-teacher" required class="w-full border border-[#e7dcc3] rounded px-3 py-2 bg-white font-semibold">
-              <option value="" selected>-- Pilih Guru / Ustadz --</option>
-              ${sortedActiveTeachers.map(t => `<option value="${escapeHtml(t.id)}">${escapeHtml(t.nama)}</option>`).join('')}
-            </select>
-          </div>
-          <button type="submit" class="py-2 px-5 rounded bg-[#136048] hover:bg-[#0b3b2e] text-white font-semibold shadow-sm">+ Tugaskan Mengajar</button>
-        </div>
-
-        <div class="grid md:grid-cols-2 gap-4">
-          <!-- LEFT COLUMN: CHECKBOX KELAS (1 KOLOM PER TINGKAT) -->
-          <div class="bg-white rounded border border-[#e7dcc3] p-3 flex flex-col">
-            <div class="flex items-center justify-between border-b border-[#e7dcc3] pb-2 mb-2">
-              <span class="font-bold text-[#0f4c3a]">2. Pilih Kelas (Kolom Kiri)</span>
-              <div class="space-x-2 text-[11px]">
-                <button type="button" onclick="toggleAssignCheckboxes('assign-kelas-cb', true)" class="text-[#136048] font-semibold hover:underline">Pilih Semua</button>
-                <button type="button" onclick="toggleAssignCheckboxes('assign-kelas-cb', false)" class="text-slate-500 hover:underline">Kosongkan</button>
-              </div>
-            </div>
-            <div class="grid gap-3 max-h-64 overflow-y-auto pr-1" style="grid-template-columns: repeat(${Math.max(1, tingkatList.length)}, minmax(0, 1fr));">
-              ${tingkatList.map(tk => {
-                const clsInTk = sortedClasses.filter(c => String(c.tingkat || '') === tk);
-                return `
-                  <div class="flex flex-col gap-1.5">
-                    <div class="text-[11px] font-bold text-center text-[#0f4c3a] bg-[#fbf8f1] border border-[#e7dcc3] rounded py-1">Tingkat ${escapeHtml(tk)}</div>
-                    ${clsInTk.map(c => `
-                      <label class="flex items-center gap-2 px-2.5 py-1.5 rounded border border-[#e7dcc3] hover:bg-[#fbf8f1] cursor-pointer">
-                        <input type="checkbox" name="assign-kelas-cb" value="${escapeHtml(c.kode)}" class="rounded border-slate-300 text-[#136048] focus:ring-[#136048]" />
-                        <span class="font-semibold text-slate-800">Kelas ${escapeHtml(c.kode)}</span>
-                      </label>
-                    `).join('')}
-                  </div>
-                `;
-              }).join('')}
-            </div>
-          </div>
-
-          <!-- RIGHT COLUMN: CHECKBOX MATA PELAJARAN -->
-          <div class="bg-white rounded border border-[#e7dcc3] p-3 flex flex-col">
-            <div class="flex items-center justify-between border-b border-[#e7dcc3] pb-2 mb-2">
-              <span class="font-bold text-[#0f4c3a]">3. Pilih Mata Pelajaran (Kolom Kanan)</span>
-              <div class="space-x-2 text-[11px]">
-                <button type="button" onclick="toggleAssignCheckboxes('assign-mapel-cb', true)" class="text-[#136048] font-semibold hover:underline">Pilih Semua</button>
-                <button type="button" onclick="toggleAssignCheckboxes('assign-mapel-cb', false)" class="text-slate-500 hover:underline">Kosongkan</button>
-              </div>
-            </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-60 overflow-y-auto pr-1">
-              ${sortedSubjects.map(s => `
-                <label class="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded border border-[#e7dcc3] hover:bg-[#fbf8f1] cursor-pointer">
-                  <span class="flex items-center gap-2 min-w-0">
-                    <input type="checkbox" name="assign-mapel-cb" value="${escapeHtml(s.namaArab)}" class="rounded border-slate-300 text-[#136048] focus:ring-[#136048] flex-shrink-0" />
-                    <span class="font-medium text-slate-800 truncate">${escapeHtml(s.namaId)}</span>
-                  </span>
-                  <span class="arabic-font text-sm text-[#0f4c3a] flex-shrink-0">${escapeHtml(s.namaArab)}</span>
-                </label>
-              `).join('')}
-            </div>
-          </div>
-        </div>
-      </form>
 
       <div class="flex flex-wrap items-center justify-between gap-2 text-xs pt-1">
         <div class="font-bold text-[#0f4c3a]">
-          Daftar Penugasan Mengajar (${totalRows} baris • ${visibleAssignments.length} kelas-mapel)
+          Daftar Penugasan Mengajar (${totalRows} baris &bull; ${visibleAssignments.length} kelas-mapel)
         </div>
         <div class="flex flex-wrap items-center gap-3">
           <div class="flex items-center gap-1.5">
             <label class="text-slate-600 font-semibold">Tampilkan:</label>
-            <select onchange="state.assignPageSize=this.value; state.assignPage=1; renderPage()" class="border border-[#e7dcc3] rounded px-2 py-1 bg-white font-semibold">
+            <select onchange="state.assignPageSize=this.value; state.assignPage=1; renderPage()" class="border border-[#e7dcc3] rounded-lg px-2 py-1 bg-white font-semibold">
               <option value="10" ${pageSizeRaw === '10' ? 'selected' : ''}>10</option>
               <option value="25" ${pageSizeRaw === '25' ? 'selected' : ''}>25</option>
               <option value="50" ${pageSizeRaw === '50' ? 'selected' : ''}>50</option>
@@ -4204,7 +4340,7 @@ function renderMengajarProktor() {
           </div>
           <div class="flex items-center gap-1.5">
             <label class="text-slate-600 font-semibold">Filter Guru:</label>
-            <select onchange="state.filterAssignTeacherId=this.value; state.assignPage=1; renderPage()" class="border border-[#e7dcc3] rounded px-2.5 py-1 bg-white">
+            <select onchange="state.filterAssignTeacherId=this.value; state.assignPage=1; renderPage()" class="border border-[#e7dcc3] rounded-lg px-2.5 py-1 bg-white">
               <option value="all" ${filterTid === 'all' ? 'selected' : ''}>- Semua Guru -</option>
               ${sortedTeachers.map(t => `<option value="${escapeHtml(t.id)}" ${filterTid === t.id ? 'selected' : ''}>${escapeHtml(t.nama)}</option>`).join('')}
             </select>
@@ -4216,16 +4352,16 @@ function renderMengajarProktor() {
         <table class="w-full text-left border-collapse text-xs border border-[#e7dcc3]">
           <thead>
             <tr class="bg-[#fbf8f1] border-b border-[#e7dcc3] font-bold text-[#0f4c3a]">
-              <th class="px-3 py-2 border-r text-center w-10">No</th>
-              <th onclick="setAssignSort('guru')" class="px-3 py-2 border-r cursor-pointer select-none hover:bg-[#f2ebda]">Nama Guru ${sortIcon('guru')}</th>
-              <th onclick="setAssignSort('mapel')" class="px-3 py-2 border-r cursor-pointer select-none hover:bg-[#f2ebda]">Mata Pelajaran ${sortIcon('mapel')}</th>
-              <th onclick="setAssignSort('kelas')" class="px-3 py-2 border-r cursor-pointer select-none hover:bg-[#f2ebda]">Kelas ${sortIcon('kelas')}</th>
-              <th class="px-3 py-2 text-center w-24">Aksi</th>
+              <th class="px-3 py-2.5 border-r text-center w-10">No</th>
+              <th onclick="setAssignSort('guru')" class="px-3 py-2.5 border-r cursor-pointer select-none hover:bg-[#f2ebda]">Nama Guru ${sortIcon('guru')}</th>
+              <th onclick="setAssignSort('mapel')" class="px-3 py-2.5 border-r cursor-pointer select-none hover:bg-[#f2ebda]">Mata Pelajaran ${sortIcon('mapel')}</th>
+              <th onclick="setAssignSort('kelas')" class="px-3 py-2.5 border-r cursor-pointer select-none hover:bg-[#f2ebda]">Kelas ${sortIcon('kelas')}</th>
+              <th class="px-3 py-2.5 text-center w-24">Aksi</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-[#e7dcc3]">
             ${pagedRows.length === 0 ? `
-              <tr><td colspan="5" class="px-4 py-5 text-center text-slate-400 italic">Belum ada penugasan mengajar.</td></tr>
+              <tr><td colspan="5" class="px-4 py-6 text-center text-slate-400 italic">Belum ada penugasan mengajar. Klik tombol "+ Tambah Penugasan" untuk memulai.</td></tr>
             ` : pagedRows.map((g, idx) => `
               <tr class="hover:bg-[#fbf8f1]">
                 <td class="px-3 py-2 border-r text-center">${startIdx + idx + 1}</td>
@@ -4236,7 +4372,7 @@ function renderMengajarProktor() {
                 </td>
                 <td class="px-3 py-2 border-r font-semibold text-[#0f4c3a]">${escapeHtml(g.kelasListText)}</td>
                 <td class="px-3 py-2 text-center">
-                  <button onclick="deleteAssignmentGroup([${g.ids.join(',')}])" class="px-2.5 py-1 rounded bg-rose-100 hover:bg-rose-200 text-rose-700 font-semibold">Hapus</button>
+                  <button onclick="deleteAssignmentGroup([${g.ids.join(',')}])" class="px-2.5 py-1 rounded-lg bg-rose-100 hover:bg-rose-200 text-rose-700 font-semibold transition">Hapus</button>
                 </td>
               </tr>
             `).join('')}
@@ -4248,9 +4384,9 @@ function renderMengajarProktor() {
         <div class="flex flex-wrap items-center justify-between gap-2 text-xs pt-1">
           <div class="text-slate-500">Menampilkan ${startIdx + 1}–${Math.min(startIdx + pageSize, totalRows)} dari ${totalRows} data</div>
           <div class="flex items-center gap-1.5">
-            <button type="button" onclick="state.assignPage=Math.max(1, state.assignPage-1); renderPage()" ${state.assignPage <= 1 ? 'disabled' : ''} class="px-2.5 py-1 rounded border border-[#e7dcc3] bg-white hover:bg-[#fbf8f1] disabled:opacity-40 font-semibold">Sebelumnya</button>
+            <button type="button" onclick="state.assignPage=Math.max(1, state.assignPage-1); renderPage()" ${state.assignPage <= 1 ? 'disabled' : ''} class="px-2.5 py-1 rounded-lg border border-[#e7dcc3] bg-white hover:bg-[#fbf8f1] disabled:opacity-40 font-semibold">Sebelumnya</button>
             <span class="px-2 font-semibold text-[#0f4c3a]">Hal ${state.assignPage} / ${totalPages}</span>
-            <button type="button" onclick="state.assignPage=Math.min(${totalPages}, state.assignPage+1); renderPage()" ${state.assignPage >= totalPages ? 'disabled' : ''} class="px-2.5 py-1 rounded border border-[#e7dcc3] bg-white hover:bg-[#fbf8f1] disabled:opacity-40 font-semibold">Berikutnya</button>
+            <button type="button" onclick="state.assignPage=Math.min(${totalPages}, state.assignPage+1); renderPage()" ${state.assignPage >= totalPages ? 'disabled' : ''} class="px-2.5 py-1 rounded-lg border border-[#e7dcc3] bg-white hover:bg-[#fbf8f1] disabled:opacity-40 font-semibold">Berikutnya</button>
           </div>
         </div>
       ` : ''}
@@ -4285,34 +4421,49 @@ async function deleteAssignmentGroup(ids) {
 
 async function addAssignment(e) {
   e.preventDefault();
-  const teacherId = document.getElementById('assign-teacher').value;
-  const kelasList = [...document.querySelectorAll('input[name="assign-kelas-cb"]:checked')].map(cb => cb.value);
-  const mapelList = [...document.querySelectorAll('input[name="assign-mapel-cb"]:checked')].map(cb => cb.value);
+  const teacherId = document.getElementById('assign-teacher')?.value || '';
+  const mapel = document.getElementById('assign-mapel')?.value || '';
+  const wrap = document.getElementById('assign-kelas-cards-wrap');
+  const kelasList = wrap
+    ? [...wrap.querySelectorAll('input[name="assign-kelas-cb"]:checked:not(:disabled)')].map(cb => cb.value)
+    : [];
 
-  if (kelasList.length === 0 || mapelList.length === 0) {
-    showToast('Centang minimal 1 Kelas dan 1 Mata Pelajaran');
+  if (!teacherId) {
+    showToast('Pilih Guru / Ustadz terlebih dahulu', 'warning');
+    return;
+  }
+  if (!mapel) {
+    showToast('Pilih Mata Pelajaran terlebih dahulu', 'warning');
+    return;
+  }
+  if (kelasList.length === 0) {
+    showToast('Centang minimal 1 Kelas yang belum ditugaskan', 'warning');
     return;
   }
 
   const created = [];
   for (const kode of kelasList) {
-    for (const mapel of mapelList) {
-      const exists = state.assignments.some(a => a.teacherId === teacherId && a.kode === kode && a.mapel === mapel);
-      if (!exists) {
-        created.push({ teacherId, kelas: 'Kelas ' + kode, kode, mapel, sent: false });
-      }
+    const exists = state.assignments.some(a => a.teacherId === teacherId && a.kode === kode && a.mapel === mapel);
+    if (!exists) {
+      created.push({ teacherId, kelas: 'Kelas ' + kode, kode, mapel, sent: false });
     }
   }
 
   if (created.length === 0) {
-    showToast('Semua kombinasi kelas & mapel tersebut sudah ditugaskan');
+    showToast('Semua kelas terpilih sudah ditugaskan untuk guru & mapel ini', 'warning');
     return;
   }
 
-  const res = await apiCall('POST', '/api/assignments', { tahun: state.pesantren.tahun, assignments: created });
-  if (!res || !res.ok) return;
-  await refreshStateFromServer(true);
-  showToast(`${res.count ?? created.length} penugasan mengajar berhasil ditambahkan`);
+  setButtonBusy('btn-submit-assign', true, 'Menyimpan...');
+  try {
+    const res = await apiCall('POST', '/api/assignments', { tahun: state.pesantren.tahun, assignments: created });
+    if (!res || !res.ok) return;
+    closeAssignModal();
+    await refreshStateFromServer(true);
+    showToast(`${res.count ?? created.length} penugasan mengajar berhasil ditambahkan`);
+  } finally {
+    setButtonBusy('btn-submit-assign', false);
+  }
 }
 
 function getActivePeriodDraftPrefix() {
@@ -4394,6 +4545,7 @@ async function savePenilaianToServer(assignId, subId, kelasKode, silent = false)
   });
   setButtonBusy('btn-save-nilai-top', true, 'Menyimpan...');
   setButtonBusy('btn-save-nilai-foot', true, 'Menyimpan...');
+  setButtonBusy('btn-save-nilai-mob', true, 'Menyimpan...');
   try {
     const res = await apiCall('PUT', '/api/scores', {
       tahun: state.pesantren.tahun,
@@ -4412,6 +4564,7 @@ async function savePenilaianToServer(assignId, subId, kelasKode, silent = false)
   } finally {
     setButtonBusy('btn-save-nilai-top', false);
     setButtonBusy('btn-save-nilai-foot', false);
+    setButtonBusy('btn-save-nilai-mob', false);
   }
 }
 
@@ -4421,6 +4574,7 @@ async function toggleAssignmentSent(assignId, subId, kelasKode) {
   const nextSent = !kObj.sent;
   setButtonBusy('btn-send-nilai-top', true, nextSent ? 'Mengirim...' : 'Membuka...');
   setButtonBusy('btn-send-nilai-foot', true, nextSent ? 'Mengirim...' : 'Membuka...');
+  setButtonBusy('btn-send-nilai-mob', true, nextSent ? 'Mengirim...' : 'Membuka...');
   try {
     if (nextSent && subId && kelasKode) {
       const saved = await savePenilaianToServer(assignId, subId, kelasKode, false);
@@ -4442,6 +4596,7 @@ async function toggleAssignmentSent(assignId, subId, kelasKode) {
   } finally {
     setButtonBusy('btn-send-nilai-top', false);
     setButtonBusy('btn-send-nilai-foot', false);
+    setButtonBusy('btn-send-nilai-mob', false);
   }
 }
 
@@ -4741,6 +4896,22 @@ function renderPenilaian() {
 
     <!-- MOBILE TOUCH-FRIENDLY GRADING CARDS (< 768px) -->
     <div class="md:hidden space-y-2.5 penilaian-mobile-cards">
+      ${!isLocked && classStudents.length > 0 ? `
+        <div class="rdp-card p-3.5 bg-[#fbf8f1] space-y-2">
+          <div class="text-xs font-bold text-[#0f4c3a]">Isi Nilai Default Kelas</div>
+          <div class="flex flex-wrap items-center gap-2">
+            <input id="default-nilai-input-mob" type="number" inputmode="decimal" min="0" max="100" placeholder="0–100" aria-label="Nilai default kelas (mobile)"
+              class="w-24 h-10 border border-emerald-400 bg-white rounded-lg px-2.5 py-1.5 text-center text-sm font-bold text-emerald-900 placeholder-emerald-600/60 tabular-nums" />
+            <button type="button" data-kelas="${escapeHtml(kObj.kode)}" onclick="applyDefaultNilai(${sub.id}, ${jamNum}, this.dataset.kelas, 'mob')" class="h-10 px-3.5 rounded-lg bg-[#136048] hover:bg-[#0b3b2e] text-white text-xs font-bold transition">
+              Terapkan
+            </button>
+            <label class="inline-flex items-center gap-1.5 text-xs text-slate-700 cursor-pointer ml-auto" title="Jika dicentang, nilai yang sudah ada tidak ditimpa">
+              <input id="default-nilai-empty-only-mob" type="checkbox" checked class="w-4 h-4 rounded border-slate-300 text-[#136048]" />
+              <span>Kosong saja</span>
+            </label>
+          </div>
+        </div>
+      ` : ''}
       ${classStudents.length === 0 ? `
         <div class="rdp-card p-6 text-center text-sm text-slate-500 italic">Belum ada data santri di ${escapeHtml(kObj.kelas)}.</div>
       ` : classStudents.map((st, i) => {
@@ -4780,20 +4951,37 @@ function renderPenilaian() {
           </div>
         `;
       }).join('')}
+      ${classStudents.length > 0 ? `
+        <div class="rdp-card p-3.5 bg-[#fbf8f1] flex items-center gap-2">
+          ${isLocked ? '' : `
+            <button id="btn-save-nilai-mob" type="button" data-kelas="${escapeHtml(kObj.kode)}" onclick="savePenilaianToServer(${kObj.id}, ${sub.id}, this.dataset.kelas)" class="flex-1 py-2.5 px-3 rounded-lg border-2 border-[#136048] bg-white hover:bg-[#f0f7f4] text-[#0f4c3a] text-xs font-bold transition">
+              Save Nilai
+            </button>
+          `}
+          <button id="btn-send-nilai-mob" type="button" data-kelas="${escapeHtml(kObj.kode)}" onclick="toggleAssignmentSent(${kObj.id}, ${sub.id}, this.dataset.kelas)" class="flex-1 py-2.5 px-3 rounded-lg ${isLocked ? 'bg-amber-600 hover:bg-amber-700 text-white' : 'bg-[#0f4c3a] hover:bg-[#0b3b2e] text-[#f3e3b0] border-b-2 border-[#c9a227]'} text-xs font-bold shadow-sm transition">
+            ${isLocked ? 'Batalkan Kirim' : 'Kirim Nilai'}
+          </button>
+        </div>
+      ` : ''}
     </div>
   `;
 }
 
-async function applyDefaultNilai(subId, jam, kelasKode) {
+async function applyDefaultNilai(subId, jam, kelasKode, source = 'desktop') {
   if (!kelasKode) return;
-  const defInp = document.getElementById('default-nilai-input');
+  const inputId = source === 'mob' ? 'default-nilai-input-mob' : 'default-nilai-input';
+  const emptyCbId = source === 'mob' ? 'default-nilai-empty-only-mob' : 'default-nilai-empty-only';
+  const defInp = document.getElementById(inputId);
   const rawVal = defInp ? defInp.value.trim() : '';
   if (rawVal === '') { showToast('Isi angka nilai default terlebih dahulu', 'warning'); return; }
   const parsed = Number(rawVal);
   if (!Number.isFinite(parsed)) { showToast('Nilai default harus berupa angka', 'error'); return; }
   const val = Math.min(100, Math.max(0, Math.round(parsed)));
-  if (defInp) defInp.value = val;
-  const emptyOnly = Boolean(document.getElementById('default-nilai-empty-only')?.checked);
+  ['default-nilai-input', 'default-nilai-input-mob'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = val;
+  });
+  const emptyOnly = Boolean(document.getElementById(emptyCbId)?.checked);
   const targets = state.students.filter(st => st.kelas === kelasKode);
   const affected = emptyOnly ? targets.filter(st => !hasScoreValue(st.scores && st.scores[subId])) : targets;
   if (affected.length === 0) {
@@ -5553,8 +5741,7 @@ const RANKING_COLUMNS = [
 ];
 
 function switchRaporSubTab(tab) {
-  state.raporSubTab = tab === 'ranking' ? 'ranking' : 'rapor';
-  renderPage();
+  navigate(tab === 'ranking' ? 'cetak-ranking' : 'rapor-siswa');
 }
 
 function getDefaultRankingSortDir(colKey) {
@@ -6433,7 +6620,48 @@ function renderSingleRaporSheet(s, isLastPage, printAssets = null) {
 }
 
 
-function renderRaporLokal() {
+function renderRaporClassSelectorBar(waliKelas, matchingClasses, showLedgerButtons = true) {
+  return `
+    <div class="no-print bg-white rounded-xl border border-[#e7dcc3] shadow-sm p-4 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex flex-wrap items-center gap-3 text-xs">
+        ${waliKelas ? `
+          <span class="px-3 py-1.5 rounded-lg bg-[#0f4c3a] text-[#f3e3b0] font-bold">Wali Kelas: Kelas ${escapeHtml(waliKelas)}</span>
+        ` : `
+          <div class="flex items-center gap-2">
+            <label class="font-semibold text-slate-700">Tingkat:</label>
+            <select onchange="onRaporTingkatChange(this.value)" class="border border-slate-300 rounded-lg px-3 py-1.5 bg-white font-semibold">
+              <option value="" ${!state.selectedRaporTingkat ? 'selected' : ''}>-- Pilih Tingkat --</option>
+              <option value="7" ${state.selectedRaporTingkat === '7' ? 'selected' : ''}>7 (السابع)</option>
+              <option value="8" ${state.selectedRaporTingkat === '8' ? 'selected' : ''}>8 (الثامن)</option>
+              <option value="9" ${state.selectedRaporTingkat === '9' ? 'selected' : ''}>9 (التاسع)</option>
+            </select>
+          </div>
+          <div class="flex items-center gap-2">
+            <label class="font-semibold text-slate-700">Kelas:</label>
+            <select onchange="onRaporKelasChange(this.value)" ${!state.selectedRaporTingkat ? 'disabled' : ''} class="border border-slate-300 rounded-lg px-3 py-1.5 bg-white font-semibold disabled:bg-slate-100 disabled:text-slate-400">
+              <option value="" ${!state.selectedRaporKelas ? 'selected' : ''}>${!state.selectedRaporTingkat ? '-- Pilih Tingkat dahulu --' : '-- Pilih Kelas --'}</option>
+              ${matchingClasses.map(c => `<option value="${escapeHtml(c.kode)}" ${c.kode === state.selectedRaporKelas ? 'selected' : ''}>Kelas ${escapeHtml(c.kode)}</option>`).join('')}
+            </select>
+          </div>
+        `}
+        <button type="button" onclick="refreshStateFromServer(true).then(ok => { if (ok) showToast('Nilai terbaru dimuat dari server'); else if (state.authUser) showToast('Gagal memuat nilai dari server'); })" class="px-3 py-1.5 rounded-lg border border-[#136048] text-[#0f4c3a] hover:bg-emerald-50 font-semibold transition">
+          Refresh Nilai
+        </button>
+      </div>
+      ${showLedgerButtons ? `
+        <div class="flex flex-wrap gap-2 text-xs">
+          <button type="button" onclick="exportLeggerExcel('kelas')" class="px-3 py-2 rounded-lg bg-[#136048] hover:bg-[#0b3b2e] text-white font-semibold transition">Download Ledger Kelas ini</button>
+          ${!waliKelas ? `
+            <button type="button" onclick="exportLeggerExcel('tingkat')" class="px-3 py-2 rounded-lg bg-[#136048] hover:bg-[#0b3b2e] text-white font-semibold transition">Download Ledger Tingkat ini</button>
+            <button type="button" onclick="exportLeggerExcel('all')" class="px-3 py-2 rounded-lg border border-[#136048] text-[#0f4c3a] hover:bg-emerald-50 font-semibold transition">Download Ledger Semua kelas</button>
+          ` : ''}
+        </div>
+      ` : ''}
+    </div>
+  `;
+}
+
+function getRaporClassContext() {
   const waliKelas = getWaliKelasKode();
   if (waliKelas) {
     state.selectedRaporKelas = waliKelas;
@@ -6445,114 +6673,66 @@ function renderRaporLokal() {
   if (!waliKelas && state.selectedRaporKelas && !matchingClasses.some(c => c.kode === state.selectedRaporKelas)) {
     state.selectedRaporKelas = '';
   }
-  const classStudents = state.selectedRaporKelas
-    ? state.students.filter(st => st.kelas === state.selectedRaporKelas)
-    : [];
-  const activeSubTab = state.raporSubTab === 'ranking' ? 'ranking' : 'rapor';
-  const rankingRows = activeSubTab === 'ranking' && state.selectedRaporKelas
+  return { waliKelas, matchingClasses };
+}
+
+function renderCetakRankingPage() {
+  const { waliKelas, matchingClasses } = getRaporClassContext();
+  const rankingRows = state.selectedRaporKelas
     ? buildRankingRowsForClass(state.selectedRaporKelas)
     : [];
   const sortKey = state.rankingSortKey || 'rank';
   const sortDir = state.rankingSortDir || 'asc';
 
   return `
-    <div class="no-print bg-white rounded border border-[#e7dcc3] shadow-sm px-3 py-2 flex flex-wrap items-center justify-between gap-2">
-      <div role="tablist" aria-label="Menu Cetak Rapor" class="flex flex-wrap items-center gap-1.5 text-xs">
-        <button type="button" role="tab" aria-selected="${activeSubTab === 'rapor'}" onclick="switchRaporSubTab('rapor')" class="px-3.5 py-1.5 rounded font-semibold transition ${
-          activeSubTab === 'rapor'
-            ? 'bg-[#0f4c3a] text-[#f3e3b0] shadow-sm'
-            : 'bg-[#fbf8f1] text-slate-700 hover:bg-emerald-50 border border-[#e7dcc3]'
-        }">
-          Cetak Rapor
-        </button>
-        <button type="button" role="tab" aria-selected="${activeSubTab === 'ranking'}" onclick="switchRaporSubTab('ranking')" class="px-3.5 py-1.5 rounded font-semibold transition ${
-          activeSubTab === 'ranking'
-            ? 'bg-[#0f4c3a] text-[#f3e3b0] shadow-sm'
-            : 'bg-[#fbf8f1] text-slate-700 hover:bg-emerald-50 border border-[#e7dcc3]'
-        }">
-          Cetak Ranking
-        </button>
-      </div>
-      <div class="text-[11px] text-slate-500">
-        ${activeSubTab === 'ranking'
-          ? 'Tabel ranking kelas (Rank 1 hingga terakhir) dengan kolom sortable &amp; tanda tangan Wali Kelas.'
-          : 'Daftar &amp; pratinjau cetak rapor santri (صحيفة الدرجات).'}
-      </div>
-    </div>
-
-    <div class="no-print bg-white rounded border border-[#e7dcc3] shadow-sm p-4 flex flex-wrap items-center justify-between gap-3">
-      <div class="flex flex-wrap items-center gap-3 text-xs">
-        ${waliKelas ? `
-          <span class="px-3 py-1.5 rounded bg-[#0f4c3a] text-[#f3e3b0] font-bold">Wali Kelas: Kelas ${escapeHtml(waliKelas)}</span>
-        ` : `
-          <div class="flex items-center gap-2">
-            <label class="font-semibold text-slate-700">Tingkat:</label>
-            <select onchange="onRaporTingkatChange(this.value)" class="border border-slate-300 rounded px-3 py-1.5 bg-white font-semibold">
-              <option value="" ${!state.selectedRaporTingkat ? 'selected' : ''}>-- Pilih Tingkat --</option>
-              <option value="7" ${state.selectedRaporTingkat === '7' ? 'selected' : ''}>7 (السابع)</option>
-              <option value="8" ${state.selectedRaporTingkat === '8' ? 'selected' : ''}>8 (الثامن)</option>
-              <option value="9" ${state.selectedRaporTingkat === '9' ? 'selected' : ''}>9 (التاسع)</option>
-            </select>
-          </div>
-          <div class="flex items-center gap-2">
-            <label class="font-semibold text-slate-700">Kelas:</label>
-            <select onchange="onRaporKelasChange(this.value)" ${!state.selectedRaporTingkat ? 'disabled' : ''} class="border border-slate-300 rounded px-3 py-1.5 bg-white font-semibold disabled:bg-slate-100 disabled:text-slate-400">
-              <option value="" ${!state.selectedRaporKelas ? 'selected' : ''}>${!state.selectedRaporTingkat ? '-- Pilih Tingkat dahulu --' : '-- Pilih Kelas --'}</option>
-              ${matchingClasses.map(c => `<option value="${escapeHtml(c.kode)}" ${c.kode === state.selectedRaporKelas ? 'selected' : ''}>Kelas ${escapeHtml(c.kode)}</option>`).join('')}
-            </select>
-          </div>
-        `}
-        <button type="button" onclick="refreshStateFromServer(true).then(ok => { if (ok) showToast('Nilai terbaru dimuat dari server'); else if (state.authUser) showToast('Gagal memuat nilai dari server'); })" class="px-3 py-1.5 rounded border border-[#136048] text-[#0f4c3a] hover:bg-emerald-50 font-semibold">
-          Refresh Nilai
-        </button>
-      </div>
-      <div class="flex flex-wrap gap-2 text-xs">
-        <button onclick="exportLeggerExcel('kelas')" class="px-3 py-2 rounded bg-[#136048] hover:bg-[#0b3b2e] text-white font-semibold">Download Ledger Kelas ini</button>
-        ${!waliKelas ? `
-          <button onclick="exportLeggerExcel('tingkat')" class="px-3 py-2 rounded bg-[#136048] hover:bg-[#0b3b2e] text-white font-semibold">Download Ledger Tingkat ini</button>
-          <button onclick="exportLeggerExcel('all')" class="px-3 py-2 rounded border border-[#136048] text-[#0f4c3a] hover:bg-emerald-50 font-semibold">Download Ledger Semua kelas</button>
-        ` : ''}
-      </div>
-    </div>
-
-    ${activeSubTab === 'ranking' ? `
-      <div class="no-print bg-white rounded border border-[#e7dcc3] shadow-sm overflow-hidden">
-        <div class="px-4 py-3 border-b border-[#e7dcc3] bg-[#fbf8f1] flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <div class="text-xs font-bold text-slate-800">
-              Cetak Ranking Kelas ${escapeHtml(state.selectedRaporKelas || '-')} (${rankingRows.length} santri)
-            </div>
-            <div class="text-[11px] text-slate-500">
-              Klik header kolom tabel untuk mengurutkan. Urutan aktif:
-              <strong id="ranking-preview-sort-status" class="text-[#0f4c3a]">${escapeHtml(getRankingSortLabel(sortKey, sortDir))}</strong>
-            </div>
-          </div>
-          <div class="flex flex-wrap items-center gap-2 text-xs">
-            <button type="button" onclick="resetRankingPreviewSort()" ${rankingRows.length === 0 ? 'disabled' : ''} class="px-3 py-1.5 rounded border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 font-semibold disabled:opacity-40">
-              Reset Urutan
-            </button>
-            <button type="button" onclick="openCetakRankingTab(false)" ${rankingRows.length === 0 ? 'disabled' : ''} class="px-3 py-1.5 rounded border border-[#136048] bg-white hover:bg-emerald-50 text-[#0f4c3a] font-semibold disabled:opacity-40">
-              Pratinjau Tab Baru
-            </button>
-            <button type="button" onclick="openCetakRankingTab(true)" ${rankingRows.length === 0 ? 'disabled' : ''} class="px-3.5 py-1.5 rounded bg-[#136048] hover:bg-[#0b3b2e] text-white font-semibold shadow-sm disabled:opacity-40">
-              Cetak Ranking (PDF)
-            </button>
+    ${renderRaporClassSelectorBar(waliKelas, matchingClasses, false)}
+    <div class="no-print bg-white rounded-xl border border-[#e7dcc3] shadow-sm overflow-hidden">
+      <div class="px-4 py-3 border-b border-[#e7dcc3] bg-[#fbf8f1] flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 class="text-sm font-bold text-[#0f4c3a]">
+            Cetak Ranking Kelas ${escapeHtml(state.selectedRaporKelas || '-')} (${rankingRows.length} santri)
+          </h1>
+          <div class="text-xs text-slate-600 mt-0.5">
+            Klik header kolom tabel untuk mengurutkan. Urutan aktif:
+            <strong id="ranking-preview-sort-status" class="text-[#0f4c3a]">${escapeHtml(getRankingSortLabel(sortKey, sortDir))}</strong>
           </div>
         </div>
-        <div class="p-4 bg-[#f7f3ea]/60 overflow-x-auto">
-          ${!state.selectedRaporKelas ? `
-            <div class="bg-white rounded border border-[#e7dcc3] p-8 text-center text-xs text-slate-500 italic">
-              Silakan pilih Tingkat dan Kelas terlebih dahulu untuk menampilkan &amp; mencetak tabel ranking.
-            </div>
-          ` : (rankingRows.length === 0 ? `
-            <div class="bg-white rounded border border-[#e7dcc3] p-8 text-center text-xs text-slate-400 italic">
-              Belum ada data santri di kelas ${escapeHtml(state.selectedRaporKelas)}.
-            </div>
-          ` : renderRankingSheetHtml(state.selectedRaporKelas, rankingRows, sortKey, sortDir, null, 'sortRankingPreview', true))}
+        <div class="flex flex-wrap items-center gap-2 text-xs">
+          <button type="button" onclick="resetRankingPreviewSort()" ${rankingRows.length === 0 ? 'disabled' : ''} class="px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 font-semibold disabled:opacity-40 transition">
+            Reset Urutan
+          </button>
+          <button type="button" onclick="openCetakRankingTab(false)" ${rankingRows.length === 0 ? 'disabled' : ''} class="px-3 py-1.5 rounded-lg border-2 border-[#136048] bg-white hover:bg-[#f0f7f4] text-[#0f4c3a] font-bold disabled:opacity-40 transition">
+            Pratinjau Tab Baru
+          </button>
+          <button type="button" onclick="openCetakRankingTab(true)" ${rankingRows.length === 0 ? 'disabled' : ''} class="px-4 py-1.5 rounded-lg bg-[#0f4c3a] hover:bg-[#0b3b2e] text-[#f3e3b0] border-b-2 border-[#c9a227] font-bold shadow-sm disabled:opacity-40 transition">
+            Cetak Ranking (PDF)
+          </button>
         </div>
       </div>
-    ` : `
-      <div class="no-print bg-white rounded border border-[#e7dcc3] shadow-sm overflow-hidden">
+      <div class="p-4 bg-[#f7f3ea]/60 overflow-x-auto">
+        ${!state.selectedRaporKelas ? `
+          <div class="bg-white rounded-xl border border-[#e7dcc3] p-8 text-center text-xs text-slate-500 italic">
+            Silakan pilih Tingkat dan Kelas terlebih dahulu untuk menampilkan &amp; mencetak tabel ranking.
+          </div>
+        ` : (rankingRows.length === 0 ? `
+          <div class="bg-white rounded-xl border border-[#e7dcc3] p-8 text-center text-xs text-slate-400 italic">
+            Belum ada data santri di kelas ${escapeHtml(state.selectedRaporKelas)}.
+          </div>
+        ` : renderRankingSheetHtml(state.selectedRaporKelas, rankingRows, sortKey, sortDir, null, 'sortRankingPreview', true))}
+      </div>
+    </div>
+  `;
+}
+
+function renderRaporLokal() {
+  const { waliKelas, matchingClasses } = getRaporClassContext();
+  const classStudents = state.selectedRaporKelas
+    ? state.students.filter(st => st.kelas === state.selectedRaporKelas)
+    : [];
+
+  return `
+    ${renderRaporClassSelectorBar(waliKelas, matchingClasses, true)}
+      <div class="no-print bg-white rounded-xl border border-[#e7dcc3] shadow-sm overflow-hidden">
         <div class="px-4 py-3 border-b border-[#e7dcc3] bg-[#fbf8f1] flex flex-wrap items-center justify-between gap-3">
           <div>
             <div class="text-xs font-bold text-slate-800">
@@ -6607,7 +6787,6 @@ function renderRaporLokal() {
           </table>
         </div>
       </div>
-    `}
   `;
 }
 
@@ -8149,6 +8328,11 @@ document.addEventListener('keydown', (ev) => {
     }
   }
   if (ev.key !== 'Escape') return;
+  const assignDlg = document.getElementById('assign-modal-overlay');
+  if (assignDlg && !assignDlg.classList.contains('hidden')) {
+    closeAssignModal();
+    return;
+  }
   if (state.sidebarOpenMobile) {
     closeMobileSidebar();
     return;

@@ -31,6 +31,34 @@ const SECURITY_HEADERS = {
   'Permissions-Policy': 'camera=(), microphone=(), geolocation=()'
 };
 
+const WIB_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+function formatWibTimestamp(date = new Date()) {
+  const wib = new Date(date.getTime() + 7 * 60 * 60 * 1000);
+  const dd = String(wib.getUTCDate()).padStart(2, '0');
+  const mmm = WIB_MONTHS[wib.getUTCMonth()] || 'Jan';
+  const yyyy = wib.getUTCFullYear();
+  const hh = String(wib.getUTCHours()).padStart(2, '0');
+  const mi = String(wib.getUTCMinutes()).padStart(2, '0');
+  return `${dd} ${mmm} ${yyyy}, ${hh}:${mi} WIB`;
+}
+
+function roleToActivityLevel(role) {
+  if (role === 'admin') return 'Admin';
+  if (role === 'siswa') return 'Siswa';
+  return 'Guru';
+}
+
+function logActivity(userLike, activityText) {
+  try {
+    const actor = String((userLike && (userLike.displayName || userLike.username)) || 'Sistem').trim().slice(0, 120) || 'Sistem';
+    const level = roleToActivityLevel(userLike && userLike.role);
+    const cleanActivity = String(activityText || '').trim().slice(0, 500);
+    if (!cleanActivity) return;
+    db.prepare('INSERT INTO activities (user, level, activity, time) VALUES (?, ?, ?, ?)')
+      .run(actor, level, cleanActivity, formatWibTimestamp());
+  } catch (_) { /* fail-safe: jangan gagalkan request utama */ }
+}
+
 function purgeExpiredSessions() {
   try {
     const cutoff = new Date(Date.now() - SESSION_TTL_MS).toISOString();
@@ -486,6 +514,7 @@ const server = http.createServer(async (req, res) => {
         teacherId: userRow.teacherId,
         studentId: userRow.studentId
       };
+      logActivity(user, 'Login ke aplikasi RDP');
       return sendJson(res, 200, { ok: true, user }, {
         'Set-Cookie': buildSessionCookie(req, token, SESSION_TTL_SEC)
       });
@@ -1674,7 +1703,7 @@ const server = http.createServer(async (req, res) => {
       if ((reqTahun && String(reqTahun) !== activeTahun) || (reqSemester && String(reqSemester) !== activeSemester)) {
         return sendJson(res, 409, { error: `Periode aktif berubah (${activeTahun} ${activeSemester}). Muat ulang halaman sebelum mengirim nilai.` });
       }
-      const row = db.prepare('SELECT id, teacherId, tahun FROM assignments WHERE id = ? AND tahun = ?').get(id, activeTahun);
+      const row = db.prepare('SELECT id, teacherId, tahun, kelas, kode, mapel FROM assignments WHERE id = ? AND tahun = ?').get(id, activeTahun);
       if (!row) {
         return sendJson(res, 404, { error: 'Penugasan tidak ditemukan pada tahun pelajaran aktif' });
       }
@@ -1690,6 +1719,16 @@ const server = http.createServer(async (req, res) => {
         `).run(id, activeTahun, activeSemester, sentVal);
         db.prepare('UPDATE assignments SET sent = ? WHERE id = ?').run(sentVal, id);
       });
+      let mapelLabel = row.mapel;
+      try {
+        const subRow = db.prepare('SELECT namaId FROM subjects WHERE namaArab = ? LIMIT 1').get(row.mapel);
+        if (subRow && subRow.namaId) mapelLabel = subRow.namaId;
+      } catch (_) {}
+      const kelasLabel = row.kelas || ('Kelas ' + row.kode);
+      logActivity(
+        user,
+        sent ? `Mengirim & mengunci nilai ${mapelLabel} ${kelasLabel}` : `Membuka kembali draf nilai ${mapelLabel} ${kelasLabel}`
+      );
       sendJson(res, 200, { ok: true });
       return;
     }
@@ -1742,9 +1781,9 @@ const server = http.createServer(async (req, res) => {
       const enrolledMap = new Map(
         db.prepare('SELECT studentId, kelas FROM student_enrollments WHERE tahun = ?').all(activeTahun).map(r => [r.studentId, r.kelas])
       );
-      const subjectMap = new Map(
-        db.prepare('SELECT id, namaArab FROM subjects').all().map(r => [r.id, r.namaArab])
-      );
+      const allSubjects = db.prepare('SELECT id, namaArab, namaId FROM subjects').all();
+      const subjectMap = new Map(allSubjects.map(r => [r.id, r.namaArab]));
+      const subjectLabelMap = new Map(allSubjects.map(r => [r.id, r.namaId || r.namaArab]));
 
       let guruAssignsByKey = null;
       let guruSentSet = null;
@@ -1763,6 +1802,7 @@ const server = http.createServer(async (req, res) => {
       }
 
       const validatedItems = [];
+      const savedPairs = new Set();
       for (const item of list) {
         const sid = Number(item.studentId);
         const subId = Number(item.subjectId);
@@ -1790,6 +1830,7 @@ const server = http.createServer(async (req, res) => {
             return sendJson(res, 409, { error: 'Nilai sudah dikirim dan terkunci. Klik "Batal Kirim" terlebih dahulu untuk mengubah nilai.' });
           }
         }
+        savedPairs.add(`${kelas}||${subjectLabelMap.get(subId) || mapel}`);
         validatedItems.push({ sid, subId, parsed });
       }
 
@@ -1802,6 +1843,14 @@ const server = http.createServer(async (req, res) => {
           }
         }
       });
+      if (validatedItems.length > 0) {
+        let actMsg = `Menyimpan nilai (${validatedItems.length} entri)`;
+        if (savedPairs.size === 1) {
+          const [kls, lbl] = [...savedPairs][0].split('||');
+          actMsg = `Menyimpan nilai ${lbl} Kelas ${kls} (${validatedItems.length} santri)`;
+        }
+        logActivity(user, actMsg);
+      }
       sendJson(res, 200, { ok: true });
       return;
     }

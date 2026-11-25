@@ -12,7 +12,7 @@
   <link rel="apple-touch-icon" href="/assets/rdp-icon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Noto+Naskh+Arabic:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Noto+Naskh+Arabic:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <script src="/vendor/tailwindcss.min.js" onerror="var s=document.createElement('script');s.src='https://cdn.tailwindcss.com';document.head.appendChild(s);"></script>
   <script src="/vendor/xlsx.full.min.js" onerror="var s=document.createElement('script');s.src='https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js';document.head.appendChild(s);"></script>
   <style>
@@ -136,6 +136,62 @@
     .tabular-nums { font-variant-numeric: tabular-nums; }
     .arabic-font { font-family: "Amiri", "Noto Naskh Arabic", "Traditional Arabic", "Scheherazade New", serif; }
 
+    /* ============ DESIGN SYSTEM TOKENS & AKSESIBILITAS ============ */
+    :root {
+      --rdp-bg-canvas: #f7f3ea;
+      --rdp-bg-surface: #ffffff;
+      --rdp-bg-subtle: #fbf8f1;
+      --rdp-border: #e7dcc3;
+      --rdp-primary: #0f4c3a;
+      --rdp-primary-hover: #0b3b2e;
+      --rdp-primary-mid: #136048;
+      --rdp-accent: #c9a227;
+      --rdp-accent-dark: #a07d18;
+      --rdp-text: #0f4c3a;
+      --rdp-text-muted: #52635c;
+      --rdp-radius-card: 0.75rem;
+      --rdp-radius-control: 0.5rem;
+    }
+    body {
+      font-family: "Plus Jakarta Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    @media screen {
+      button:focus-visible,
+      a:focus-visible,
+      input:focus-visible,
+      select:focus-visible,
+      textarea:focus-visible,
+      [tabindex]:focus-visible {
+        outline: 2px solid var(--rdp-accent);
+        outline-offset: 2px;
+      }
+    }
+    .rdp-card {
+      background: var(--rdp-bg-surface);
+      border: 1px solid var(--rdp-border);
+      border-radius: var(--rdp-radius-card);
+      box-shadow: 0 1px 2px rgba(15, 76, 58, 0.05);
+    }
+    @keyframes rdpShimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+    .rdp-skeleton {
+      background: linear-gradient(90deg, #efe7d6 25%, #f9f5eb 50%, #efe7d6 75%);
+      background-size: 200% 100%;
+      animation: rdpShimmer 1.4s ease-in-out infinite;
+    }
+    .rdp-btn-busy {
+      opacity: 0.72 !important;
+      cursor: wait !important;
+    }
+    .rdp-table-sticky thead th {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      box-shadow: inset 0 -1px 0 var(--rdp-border);
+    }
+
     /* ============ PALET WARNA RDP (60 / 30 / 10) ============
        Utama 60%     : Ivory / Krem  #f7f3ea, #fbf8f1, putih (latar & kartu), garis #e7dcc3
        Secondary 30% : Hijau Zamrud  #0f4c3a, #136048, #0b3b2e (sidebar, tombol utama, header tabel)
@@ -234,7 +290,8 @@
         min-width: 540px;
       }
       #main-content table.rapor-table,
-      #main-content table.ranking-meta-table {
+      #main-content table.ranking-meta-table,
+      #main-content .penilaian-mobile-cards {
         min-width: 0;
       }
       /* Bottom safe spacing for mobile bottom navigation bar */
@@ -286,13 +343,13 @@
         <div id="login-error" class="hidden mb-3 px-3 py-2 rounded bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold"></div>
         <form onsubmit="submitLogin(event)" class="space-y-3">
           <div>
-            <label class="block text-xs font-semibold text-[#0f4c3a] mb-1">Username / NUPTK / NISN</label>
-            <input id="login-username" type="text" required placeholder="Masukkan Username / NUPTK / NISN" class="w-full px-3 py-2 rounded-lg border border-[#e7dcc3] bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#c9a227] focus:border-[#c9a227]" />
+            <label for="login-username" class="block text-xs font-semibold text-[#0f4c3a] mb-1">Username / NUPTK / NISN</label>
+            <input id="login-username" type="text" required autocomplete="username" placeholder="Masukkan Username / NUPTK / NISN" class="w-full px-3 py-2 rounded-lg border border-[#e7dcc3] bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#c9a227] focus:border-[#c9a227]" />
           </div>
           <div>
-            <label class="block text-xs font-semibold text-[#0f4c3a] mb-1">Password</label>
+            <label for="login-password" class="block text-xs font-semibold text-[#0f4c3a] mb-1">Password</label>
             <div class="relative">
-              <input id="login-password" type="password" required placeholder="Masukkan password" class="w-full px-3 py-2 pr-10 rounded-lg border border-[#e7dcc3] bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#c9a227] focus:border-[#c9a227]" />
+              <input id="login-password" type="password" required autocomplete="current-password" placeholder="Masukkan password" class="w-full px-3 py-2 pr-10 rounded-lg border border-[#e7dcc3] bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#c9a227] focus:border-[#c9a227]" />
               <button type="button" onclick="togglePasswordVisibility('login-password', this)" class="absolute inset-y-0 right-0 px-2.5 flex items-center text-slate-400 hover:text-[#0f4c3a] focus:outline-none" title="Tampilkan / Sembunyikan Password" aria-label="Toggle Password Visibility">
                 <svg class="w-4 h-4 eye-open" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                 <svg class="w-4 h-4 eye-closed hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/></svg>
@@ -301,7 +358,7 @@
           </div>
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="block text-xs font-semibold text-[#0f4c3a] mb-1">Tahun Ajaran Aktif</label>
+              <label for="login-tahun" class="block text-xs font-semibold text-[#0f4c3a] mb-1">Tahun Ajaran Aktif</label>
               <select id="login-tahun" disabled title="Mengikuti pengaturan aktif di Lembaga → Pengaturan" class="w-full px-2.5 py-2 rounded-lg border border-[#e7dcc3] text-xs bg-slate-100 text-slate-600 cursor-not-allowed">
                 <option>2024/2025</option>
                 <option selected>2025/2026</option>
@@ -310,7 +367,7 @@
               </select>
             </div>
             <div>
-              <label class="block text-xs font-semibold text-[#0f4c3a] mb-1">Semester Aktif</label>
+              <label for="login-semester" class="block text-xs font-semibold text-[#0f4c3a] mb-1">Semester Aktif</label>
               <select id="login-semester" disabled title="Mengikuti pengaturan aktif di Lembaga → Pengaturan" class="w-full px-2.5 py-2 rounded-lg border border-[#e7dcc3] text-xs bg-slate-100 text-slate-600 cursor-not-allowed">
                 <option selected>Ganjil</option>
                 <option>Genap</option>
@@ -318,9 +375,9 @@
             </div>
           </div>
           <div class="flex items-center justify-end text-xs pt-1">
-            <a href="#" onclick="event.preventDefault(); showToast('Hubungi Operator Pesantren untuk reset password')" class="text-[#136048] font-semibold hover:underline">Lupa Password</a>
+            <a href="#" onclick="event.preventDefault(); showToast('Hubungi Operator Pesantren untuk reset password', 'info')" class="text-[#136048] font-semibold hover:underline">Lupa Password</a>
           </div>
-          <button type="submit" class="w-full py-2.5 px-4 rounded-lg bg-[#0f4c3a] hover:bg-[#0b3b2e] text-[#f3e3b0] text-xs font-bold tracking-wider uppercase transition shadow border-b-2 border-[#c9a227]">Masuk ke RDP</button>
+          <button id="login-submit-btn" type="submit" class="w-full py-2.5 px-4 rounded-lg bg-[#0f4c3a] hover:bg-[#0b3b2e] text-[#f3e3b0] text-xs font-bold tracking-wider uppercase transition shadow border-b-2 border-[#c9a227]">Masuk ke RDP</button>
         </form>
       </div>
     </div>
@@ -338,9 +395,9 @@
             Semester Ganjil • 2026/2027
           </div>
         </div>
-        <div id="sidebar-logo-box" onclick="if(window.innerWidth>=768 && state.sidebarCollapsedDesktop) toggleSidebar();" class="hidden w-9 h-9 rounded-lg bg-white items-center justify-center shadow overflow-hidden flex-shrink-0 cursor-pointer p-0.5" title="Rapor Digital Pesantren">
+        <button type="button" id="sidebar-logo-box" onclick="if(window.innerWidth>=768 && state.sidebarCollapsedDesktop) toggleSidebar();" aria-label="Lebarkan Sidebar" class="hidden w-9 h-9 rounded-lg bg-white items-center justify-center shadow overflow-hidden flex-shrink-0 cursor-pointer p-0.5 border border-[#e7dcc3]" title="Rapor Digital Pesantren">
           <img src="/assets/rdp-icon.png" alt="RDP" class="w-full h-full object-contain" />
-        </div>
+        </button>
         <!-- Tombol Tutup Sidebar di Mobile -->
         <button type="button" onclick="closeMobileSidebar()" class="md:hidden p-1.5 rounded-lg text-[#0f4c3a] hover:bg-slate-100 transition flex-shrink-0" aria-label="Tutup Menu">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
@@ -400,10 +457,35 @@
         </div>
       </header>
 
+      <!-- ACCESSIBLE REUSABLE MODAL (CONFIRM / INPUT) -->
+      <div id="rdp-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="rdp-modal-title" onclick="if(event.target===this) closeRdpModal(null)" class="no-print hidden fixed inset-0 z-[80] bg-black/50 backdrop-blur-[1px] flex items-center justify-center p-4">
+        <div class="w-full max-w-md bg-white rounded-xl border border-[#e7dcc3] shadow-2xl overflow-hidden" onclick="event.stopPropagation()">
+          <div class="px-5 py-3.5 bg-[#fbf8f1] border-b border-[#e7dcc3] flex items-center justify-between gap-3">
+            <h3 id="rdp-modal-title" class="text-sm font-bold text-[#0f4c3a]">Konfirmasi</h3>
+            <button type="button" onclick="closeRdpModal(null)" class="p-1 rounded-lg text-slate-400 hover:text-[#0f4c3a] hover:bg-[#efe6d0]/60 transition" aria-label="Tutup dialog">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+          </div>
+          <div class="p-5 space-y-3 text-sm text-slate-700">
+            <p id="rdp-modal-message" class="leading-relaxed whitespace-pre-line"></p>
+            <div id="rdp-modal-input-wrap" class="hidden space-y-1.5">
+              <label id="rdp-modal-input-label" for="rdp-modal-input" class="block text-xs font-semibold text-[#0f4c3a]"></label>
+              <input id="rdp-modal-input" type="text" class="w-full px-3 py-2 rounded-lg border border-[#e7dcc3] bg-white text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#c9a227] focus:border-[#c9a227]" />
+              <div id="rdp-modal-error" role="alert" class="hidden text-xs font-semibold text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-2.5 py-1.5"></div>
+            </div>
+          </div>
+          <div class="px-5 py-3 bg-[#fbf8f1] border-t border-[#e7dcc3] flex items-center justify-end gap-2">
+            <button id="rdp-modal-cancel" type="button" onclick="closeRdpModal(null)" class="px-3.5 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition">Batal</button>
+            <button id="rdp-modal-confirm" type="button" onclick="confirmRdpModal()" class="px-4 py-2 rounded-lg bg-[#0f4c3a] hover:bg-[#0b3b2e] text-white text-xs font-semibold shadow-sm transition">Lanjutkan</button>
+          </div>
+        </div>
+      </div>
+
       <!-- TOAST -->
-      <div id="toast" role="status" aria-live="polite" class="no-print hidden fixed bottom-5 right-5 z-50 bg-[#0b3b2e] text-white px-4 py-2.5 rounded-lg shadow-lg text-xs font-medium flex items-center gap-2">
-        <span class="w-2 h-2 rounded-full bg-[#a07d18]"></span>
-        <span id="toast-msg">Tersimpan</span>
+      <div id="toast" role="status" aria-live="polite" class="no-print hidden fixed bottom-5 right-5 z-[90] max-w-sm bg-[#0b3b2e] text-white px-4 py-3 rounded-xl shadow-xl border border-[#c9a227]/40 text-xs font-medium flex items-center gap-2.5">
+        <span id="toast-icon" class="w-5 h-5 rounded-full bg-[#c9a227]/25 text-[#f3e3b0] flex items-center justify-center font-bold flex-shrink-0" aria-hidden="true">✓</span>
+        <span id="toast-msg" class="flex-1 leading-snug">Tersimpan</span>
+        <button type="button" onclick="hideToast()" class="ml-1 text-white/70 hover:text-white leading-none text-base font-bold px-1 rounded" aria-label="Tutup notifikasi">&times;</button>
       </div>
 
       <!-- MAIN BODY -->
@@ -485,18 +567,25 @@ function getAcademicYearOptions(extraYears = []) {
   return Array.from(collected).sort();
 }
 
-function addCustomAcademicYear() {
+async function addCustomAcademicYear() {
   const existing = getAcademicYearOptions();
   const last = existing[existing.length - 1] || `${ACADEMIC_YEAR_CONFIG.minLastStartYear}/${ACADEMIC_YEAR_CONFIG.minLastStartYear + 1}`;
   const nextStart = Number(last.slice(0, 4)) + 1;
   const suggested = `${nextStart}/${nextStart + 1}`;
-  const input = prompt(`Masukkan Tahun Pelajaran baru (format YYYY/YYYY, contoh: ${suggested}):`, suggested);
+  const input = await openInputModal({
+    title: 'Tambah Tahun Pelajaran',
+    message: 'Tambahkan tahun pelajaran baru ke daftar pilihan. Format harus berupa dua tahun berurutan (YYYY/YYYY).',
+    label: 'Tahun Pelajaran',
+    defaultValue: suggested,
+    placeholder: suggested,
+    confirmText: 'Tambahkan',
+    validate: (val) => normalizeAcademicYear(val)
+      ? null
+      : `Format tahun pelajaran tidak valid. Gunakan format YYYY/YYYY berurutan (contoh: ${suggested}).`
+  });
   if (input === null) return;
   const normalized = normalizeAcademicYear(input);
-  if (!normalized) {
-    showToast('Format tahun pelajaran tidak valid. Gunakan format YYYY/YYYY berurutan, contoh: 2030/2031');
-    return;
-  }
+  if (!normalized) return;
   saveCustomAcademicYear(normalized);
   const sel = document.getElementById('set-tahun');
   if (sel) {
@@ -892,12 +981,202 @@ async function bakeTextWatermarkDataUrl(m) {
   }
 }
 
-function showToast(msg) {
+function hideToast() {
   const el = document.getElementById('toast');
-  document.getElementById('toast-msg').textContent = msg;
+  if (el) el.classList.add('hidden');
+  clearTimeout(window._t);
+}
+
+function showToast(msg, type = 'auto') {
+  const el = document.getElementById('toast');
+  const msgEl = document.getElementById('toast-msg');
+  const iconEl = document.getElementById('toast-icon');
+  if (!el || !msgEl) return;
+  const text = String(msg ?? '');
+  let variant = type;
+  if (variant === 'auto') {
+    if (/^(gagal|terjadi kesalahan|pop-up diblokir)|tidak valid|gagal/i.test(text)) variant = 'error';
+    else if (/peringatan|cek typo|belum ada|minimal |kosong|terkunci|dibatalkan|penuh|wajib|tidak ditemukan/i.test(text)) variant = 'warning';
+    else if (/menyiapkan|memproses|hubungi/i.test(text)) variant = 'info';
+    else variant = 'success';
+  }
+  const styles = {
+    success: { box: 'bg-[#0b3b2e] text-white border-[#c9a227]/50', icon: 'bg-emerald-500/25 text-emerald-200', symbol: '✓', ms: 3000 },
+    error: { box: 'bg-rose-900 text-white border-rose-400/50', icon: 'bg-rose-500/30 text-rose-100', symbol: '✕', ms: 4600 },
+    warning: { box: 'bg-amber-900 text-amber-50 border-amber-400/50', icon: 'bg-amber-400/30 text-amber-100', symbol: '⚠', ms: 4200 },
+    info: { box: 'bg-slate-800 text-white border-slate-500/50', icon: 'bg-sky-400/25 text-sky-200', symbol: 'ℹ', ms: 3200 }
+  };
+  const cfg = styles[variant] || styles.success;
+  el.className = `no-print fixed bottom-5 right-5 z-[90] max-w-sm px-4 py-3 rounded-xl shadow-xl border text-xs font-medium flex items-center gap-2.5 ${cfg.box}`;
+  if (iconEl) {
+    iconEl.className = `w-5 h-5 rounded-full flex items-center justify-center font-bold flex-shrink-0 text-[11px] ${cfg.icon}`;
+    iconEl.textContent = cfg.symbol;
+  }
+  msgEl.textContent = text;
   el.classList.remove('hidden');
   clearTimeout(window._t);
-  window._t = setTimeout(() => el.classList.add('hidden'), 2600);
+  window._t = setTimeout(() => el.classList.add('hidden'), cfg.ms);
+}
+
+function setButtonBusy(btnOrId, busy, busyLabel = 'Memproses...') {
+  const btn = typeof btnOrId === 'string' ? document.getElementById(btnOrId) : btnOrId;
+  if (!btn) return;
+  if (busy) {
+    if (!btn.dataset.origHtml) btn.dataset.origHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.classList.add('rdp-btn-busy');
+    btn.textContent = busyLabel;
+  } else {
+    btn.disabled = false;
+    btn.classList.remove('rdp-btn-busy');
+    if (btn.dataset.origHtml) {
+      btn.innerHTML = btn.dataset.origHtml;
+      delete btn.dataset.origHtml;
+    }
+  }
+}
+
+let _rdpModalState = null;
+
+function openConfirmModal(opts = {}) {
+  const {
+    title = 'Konfirmasi',
+    message = '',
+    confirmText = 'Lanjutkan',
+    cancelText = 'Batal',
+    variant = 'primary',
+    onConfirmSync = null
+  } = opts;
+  return _openRdpModalInternal({ mode: 'confirm', title, message, confirmText, cancelText, variant, onConfirmSync });
+}
+
+function openInputModal(opts = {}) {
+  const {
+    title = 'Masukkan Data',
+    message = '',
+    label = '',
+    defaultValue = '',
+    placeholder = '',
+    inputType = 'text',
+    confirmText = 'Simpan',
+    cancelText = 'Batal',
+    variant = 'primary',
+    validate = null
+  } = opts;
+  return _openRdpModalInternal({ mode: 'input', title, message, label, defaultValue, placeholder, inputType, confirmText, cancelText, variant, validate });
+}
+
+function _openRdpModalInternal(cfg) {
+  if (_rdpModalState) closeRdpModal(null);
+  const overlay = document.getElementById('rdp-modal-overlay');
+  const titleEl = document.getElementById('rdp-modal-title');
+  const msgEl = document.getElementById('rdp-modal-message');
+  const inputWrap = document.getElementById('rdp-modal-input-wrap');
+  const inputLabel = document.getElementById('rdp-modal-input-label');
+  const inputEl = document.getElementById('rdp-modal-input');
+  const errEl = document.getElementById('rdp-modal-error');
+  const cancelBtn = document.getElementById('rdp-modal-cancel');
+  const confirmBtn = document.getElementById('rdp-modal-confirm');
+
+  if (!overlay || !confirmBtn || !cancelBtn) {
+    return Promise.resolve(cfg.mode === 'confirm' ? false : null);
+  }
+
+  const prevFocus = document.activeElement;
+  if (titleEl) titleEl.textContent = cfg.title || 'Konfirmasi';
+  if (msgEl) {
+    msgEl.textContent = cfg.message || '';
+    msgEl.classList.toggle('hidden', !cfg.message);
+  }
+  if (errEl) {
+    errEl.textContent = '';
+    errEl.classList.add('hidden');
+  }
+  if (inputWrap && inputEl) {
+    if (cfg.mode === 'input') {
+      inputWrap.classList.remove('hidden');
+      if (inputLabel) {
+        inputLabel.textContent = cfg.label || '';
+        inputLabel.classList.toggle('hidden', !cfg.label);
+      }
+      inputEl.type = cfg.inputType || 'text';
+      inputEl.value = cfg.defaultValue ?? '';
+      inputEl.placeholder = cfg.placeholder || '';
+      inputEl.onkeydown = (ev) => {
+        if (ev.key === 'Enter') {
+          ev.preventDefault();
+          confirmRdpModal();
+        }
+      };
+    } else {
+      inputWrap.classList.add('hidden');
+      inputEl.value = '';
+      inputEl.onkeydown = null;
+    }
+  }
+
+  cancelBtn.textContent = cfg.cancelText || 'Batal';
+  confirmBtn.textContent = cfg.confirmText || 'Lanjutkan';
+  const variantClasses = {
+    danger: 'px-4 py-2 rounded-lg bg-rose-700 hover:bg-rose-800 text-white text-xs font-semibold shadow-sm transition',
+    warning: 'px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold shadow-sm transition',
+    primary: 'px-4 py-2 rounded-lg bg-[#0f4c3a] hover:bg-[#0b3b2e] text-white text-xs font-semibold shadow-sm transition'
+  };
+  confirmBtn.className = variantClasses[cfg.variant] || variantClasses.primary;
+
+  overlay.classList.remove('hidden');
+
+  return new Promise((resolve) => {
+    _rdpModalState = { ...cfg, resolve, prevFocus };
+    setTimeout(() => {
+      if (cfg.mode === 'input' && inputEl) {
+        inputEl.focus();
+        if (inputEl.select) inputEl.select();
+      } else {
+        confirmBtn.focus();
+      }
+    }, 10);
+  });
+}
+
+function confirmRdpModal() {
+  if (!_rdpModalState) return;
+  const st = _rdpModalState;
+  if (st.mode === 'input') {
+    const inputEl = document.getElementById('rdp-modal-input');
+    const errEl = document.getElementById('rdp-modal-error');
+    const rawVal = inputEl ? inputEl.value : '';
+    if (typeof st.validate === 'function') {
+      const errMsg = st.validate(rawVal);
+      if (errMsg) {
+        if (errEl) {
+          errEl.textContent = errMsg;
+          errEl.classList.remove('hidden');
+        }
+        if (inputEl) inputEl.focus();
+        return;
+      }
+    }
+    closeRdpModal(rawVal);
+    return;
+  }
+  if (typeof st.onConfirmSync === 'function') {
+    try { st.onConfirmSync(); } catch (_) {}
+  }
+  closeRdpModal(true);
+}
+
+function closeRdpModal(result) {
+  const overlay = document.getElementById('rdp-modal-overlay');
+  if (overlay) overlay.classList.add('hidden');
+  const st = _rdpModalState;
+  _rdpModalState = null;
+  if (!st) return;
+  const finalResult = st.mode === 'confirm' ? Boolean(result) : (result === undefined ? null : result);
+  try {
+    if (st.prevFocus && typeof st.prevFocus.focus === 'function') st.prevFocus.focus();
+  } catch (_) {}
+  st.resolve(finalResult);
 }
 
 function syncSidebarView() {
@@ -1010,6 +1289,7 @@ async function submitLogin(e) {
   const username = document.getElementById('login-username').value.trim();
   const password = document.getElementById('login-password').value;
   const errEl = document.getElementById('login-error');
+  const submitBtn = document.getElementById('login-submit-btn');
   errEl.classList.add('hidden');
 
   if (location.protocol === 'file:') {
@@ -1022,6 +1302,7 @@ async function submitLogin(e) {
     return;
   }
 
+  setButtonBusy(submitBtn, true, 'Memproses...');
   try {
     const res = await fetch('/api/login', {
       method: 'POST',
@@ -1047,6 +1328,8 @@ async function submitLogin(e) {
   } catch (err) {
     errEl.textContent = 'Gagal terhubung ke server';
     errEl.classList.remove('hidden');
+  } finally {
+    setButtonBusy(submitBtn, false);
   }
 }
 
@@ -1648,6 +1931,31 @@ function renderSidebar() {
 }
 
 // ===================== PAGE ROUTER =====================
+const PAGE_META = {
+  dashboard: { title: 'Dashboard' },
+  profil: { title: 'Profil Pesantren' },
+  pengaturan: { title: 'Pengaturan Lembaga' },
+  mapel: { title: 'Mata Pelajaran' },
+  users: { title: 'Akun & Hak Akses' },
+  kelas: { title: 'Wali Kelas & Rombel' },
+  'pengampu-kelas': { title: 'Pengampu Kelas' },
+  'status-nilai-kelas': { title: 'Status Nilai Kelas' },
+  'data-guru': { title: 'Data Guru / Ustadz' },
+  mengajar: { title: 'Jadwal Mengajar Guru' },
+  'data-siswa': { title: 'Data Santri' },
+  penilaian: { title: 'Input Nilai Santri' },
+  bobot: { title: 'Bobot Penilaian' },
+  'rapor-siswa': { title: 'Cetak Rapor & Ranking' },
+  legger: { title: 'Ledger Excel' },
+  kejuaraan: { title: 'Kejuaraan & SK' },
+  'status-nilai': { title: 'Status Pengumpulan Nilai' },
+  backup: { title: 'Backup & Restore' },
+  'siswa-dashboard': { title: 'Beranda Santri' },
+  'siswa-rapor': { title: 'Rapor Saya' },
+  'siswa-profil': { title: 'Cek Data Diri' },
+  'siswa-password': { title: 'Ganti Password' }
+};
+
 function renderPage() {
   const el = document.getElementById('main-content');
   const bc = document.getElementById('breadcrumb-current');
@@ -1656,12 +1964,7 @@ function renderPage() {
     if (!['siswa-rapor', 'siswa-profil', 'siswa-password'].includes(state.page)) {
       state.page = 'siswa-rapor';
     }
-    const labels = {
-      'siswa-rapor': 'Rapor Saya',
-      'siswa-profil': 'Cek Data Diri',
-      'siswa-password': 'Ganti Password'
-    };
-    if (bc) bc.textContent = labels[state.page] || 'Rapor Saya';
+    if (bc) bc.textContent = (PAGE_META[state.page] && PAGE_META[state.page].title) || 'Rapor Saya';
     if (state.page === 'siswa-profil') el.innerHTML = renderSiswaProfil();
     else if (state.page === 'siswa-password') el.innerHTML = renderSiswaPassword();
     else el.innerHTML = renderSiswaRapor();
@@ -1673,7 +1976,10 @@ function renderPage() {
     state.page = 'dashboard';
   }
 
-  if (bc) bc.textContent = state.page.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  if (bc) {
+    bc.textContent = (PAGE_META[state.page] && PAGE_META[state.page].title)
+      || state.page.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  }
 
   if (state.page === 'dashboard') el.innerHTML = state.mode === 'proktor' ? renderProktorDashboard() : renderGuruDashboard();
   else if (state.page === 'siswa-dashboard') el.innerHTML = renderSiswaDashboard();
@@ -1718,35 +2024,160 @@ function renderProktorDashboard() {
     String(a.level || '').toLowerCase().includes(q) ||
     String(a.activity || '').toLowerCase().includes(q)
   );
-  return `
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      <div class="rounded-lg bg-[#0f4c3a] text-white p-5 shadow-sm"><div class="text-3xl font-bold tabular-nums">${getActiveTeachers().length}</div><div class="text-sm mt-1 text-white/90">Guru / Ustadz Aktif</div></div>
-      <div class="rounded-lg bg-[#136048] text-white p-5 shadow-sm"><div class="text-3xl font-bold tabular-nums">${state.students.length}</div><div class="text-sm mt-1 text-white/90">Santri Terdaftar</div></div>
-      <div class="rounded-lg bg-[#c9a227] text-[#2b2200] p-5 shadow-sm border border-[#a07d18]/40"><div class="text-3xl font-bold tabular-nums">${state.classes.length}</div><div class="text-sm mt-1 font-semibold">Kelas</div></div>
-      <div class="rounded-lg bg-[#1d7a5c] text-white p-5 shadow-sm"><div class="text-3xl font-bold tabular-nums">${(state.subjects || []).filter(s => s.active !== false).length}</div><div class="text-sm mt-1 text-white/90">Mata Pelajaran Aktif</div></div>
-    </div>
+  const p = state.pesantren || {};
+  const activeTeachersCount = getActiveTeachers().length;
+  const activeSubjectsCount = (state.subjects || []).filter(s => s.active !== false).length;
+  const assignments = state.assignments || [];
+  const totalAssign = assignments.length;
+  const sentAssign = assignments.filter(a => a.sent).length;
+  const pctAssign = totalAssign > 0 ? Math.round((sentAssign / totalAssign) * 100) : 0;
+  const readyClasses = (state.classes || []).filter(c => {
+    const classAssigns = assignments.filter(a => a.kode === c.kode);
+    return classAssigns.length > 0 && classAssigns.every(a => a.sent);
+  }).length;
 
-    <div class="bg-white rounded border border-[#e7dcc3] shadow-sm overflow-hidden">
-      <div class="px-5 py-3 border-b border-[#e7dcc3] bg-[#fbf8f1] font-bold text-base text-[#0f4c3a]">Info RDP</div>
-      <div class="p-5 text-sm text-slate-700 space-y-2 leading-relaxed">
-        <p>Selamat datang di aplikasi <b>Rapor Digital Pesantren (RDP)</b> — <b>${escapeHtml(state.pesantren.nama)}</b>.</p>
-        <p>Gunakan menu <b>Lembaga</b> (Pengaturan, Mata Pelajaran, Akun &amp; Hak Akses), menu <b>Kelas</b> (Wali Kelas, Pengampu), menu <b>Guru</b> (Data Guru, Mengajar), menu <b>Santri</b> untuk Data Santri (Upload Excel), serta menu <b>Rapor</b> untuk Cetak Rapor PDF, Ledger Excel, Kejuaraan, &amp; Status Nilai.</p>
-        <div class="mt-2 p-3 rounded bg-amber-50 border border-amber-200 text-amber-950 text-sm">
-          <b>Info RDP v4.0:</b> Mendukung kustomisasi mata pelajaran lokal pesantren (العلوم العامة &amp; العلوم الشرعية) dan cetak rapor berbahasa Arab.
-        </div>
+  const kpiCards = [
+    { label: 'Guru / Ustadz Aktif', value: activeTeachersCount, page: 'data-guru', accent: 'border-l-[#0f4c3a]', icon: svgIcons.users },
+    { label: 'Santri Terdaftar', value: state.students.length, page: 'data-siswa', accent: 'border-l-[#136048]', icon: svgIcons.users },
+    { label: 'Rombongan Kelas', value: state.classes.length, page: 'kelas', accent: 'border-l-[#c9a227]', icon: svgIcons.cls },
+    { label: 'Mapel Aktif', value: activeSubjectsCount, page: 'mapel', accent: 'border-l-[#1d7a5c]', icon: svgIcons.book }
+  ];
+
+  const quickActions = [
+    { label: 'Upload Data Santri', desc: 'Impor Excel data anggota kelas', page: 'data-siswa', icon: svgIcons.users },
+    { label: 'Cetak Rapor & Ranking', desc: 'PDF rapor Arab & tabel ranking', page: 'rapor-siswa', icon: svgIcons.book },
+    { label: 'Export Ledger Excel', desc: 'Rekap nilai kelas & angkatan', page: 'legger', icon: svgIcons.cls },
+    { label: 'Backup Database', desc: 'Unduh cadangan SQLite lengkap', page: 'backup', icon: svgIcons.db }
+  ];
+
+  return `
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <h1 class="text-xl sm:text-2xl font-extrabold text-[#0f4c3a]">Dashboard Proktor</h1>
+        <p class="text-xs sm:text-sm text-slate-600 mt-0.5">${escapeHtml(p.nama || 'Rapor Digital Pesantren')}</p>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="px-3 py-1.5 rounded-full bg-white border border-[#e7dcc3] text-xs font-semibold text-[#0f4c3a] shadow-sm">
+          Semester ${escapeHtml(p.semester || 'Ganjil')} &bull; ${escapeHtml(p.tahun || '2026/2027')}
+        </span>
+        <button type="button" onclick="refreshStateFromServer(true).then(ok => { if (ok) showToast('Data dashboard diperbarui'); })" class="px-3 py-1.5 rounded-lg border border-[#136048] bg-white hover:bg-[#f0f7f4] text-[#0f4c3a] text-xs font-semibold transition">
+          Segarkan Data
+        </button>
       </div>
     </div>
 
-    <div class="bg-white rounded border border-[#e7dcc3] shadow-sm overflow-hidden">
-      <div class="px-5 py-3 border-b border-[#e7dcc3] bg-[#fbf8f1] font-bold text-base text-[#0f4c3a]">Aktifitas</div>
-      <div class="p-4 space-y-3">
-        <input id="activity-search-input" type="text" value="${escapeHtml(state.activitySearch)}" oninput="updateSearchAndRender('activity-search-input', 'activitySearch', this.value)" placeholder="Cari aktivitas..." class="border border-slate-300 rounded px-3 py-1.5 text-sm" />
-        <table class="w-full text-left border-collapse text-sm border border-[#e7dcc3]">
-          <thead><tr class="bg-slate-50 border-b border-[#e7dcc3] font-bold text-[#0f4c3a]"><th class="px-3 py-2 border-r">User</th><th class="px-3 py-2 border-r">Level</th><th class="px-3 py-2 border-r">Activity</th><th class="px-3 py-2">Waktu</th></tr></thead>
-          <tbody class="divide-y divide-[#e7dcc3]">
-            ${filtered.map(a => `<tr><td class="px-3 py-2 border-r font-medium">${escapeHtml(a.user)}</td><td class="px-3 py-2 border-r">${escapeHtml(a.level)}</td><td class="px-3 py-2 border-r">${escapeHtml(a.activity)}</td><td class="px-3 py-2 text-slate-500">${escapeHtml(a.time)}</td></tr>`).join('')}
-          </tbody>
-        </table>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      ${kpiCards.map(c => `
+        <button type="button" onclick="navigate('${c.page}')" class="rdp-card border-l-4 ${c.accent} p-4 text-left hover:shadow-md hover:-translate-y-0.5 transition flex items-center justify-between gap-3 group">
+          <div>
+            <div class="text-xs font-semibold text-slate-500">${escapeHtml(c.label)}</div>
+            <div class="text-2xl sm:text-3xl font-extrabold text-[#0f4c3a] tabular-nums mt-1">${c.value}</div>
+            <div class="text-xs font-semibold text-[#136048] mt-1 group-hover:underline">Lihat detail &rarr;</div>
+          </div>
+          <div class="w-10 h-10 rounded-xl bg-[#fbf8f1] border border-[#e7dcc3] text-[#0f4c3a] flex items-center justify-center flex-shrink-0 p-2.5">${c.icon}</div>
+        </button>
+      `).join('')}
+    </div>
+
+    <!-- GOLDEN RATIO 2-COLUMN LAYOUT (~61.5% : 38.5% = 8fr : 5fr) -->
+    <div class="grid grid-cols-1 lg:grid-cols-[8fr_5fr] gap-5 items-start">
+      <div class="space-y-5 min-w-0">
+        <div class="rdp-card p-5 space-y-3">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 class="text-base font-bold text-[#0f4c3a]">Progres Pengumpulan Nilai Semester</h2>
+              <p class="text-xs text-slate-600 mt-0.5">Memantau kelengkapan pengiriman nilai guru sebelum cetak rapor.</p>
+            </div>
+            <span class="px-2.5 py-1 rounded-full text-xs font-bold tabular-nums ${pctAssign === 100 && totalAssign > 0 ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 'bg-[#fbf8f1] text-[#0f4c3a] border border-[#e7dcc3]'}">
+              ${sentAssign} / ${totalAssign} Mapel (${pctAssign}%)
+            </span>
+          </div>
+          <div class="w-full h-3 rounded-full bg-[#efe7d6] overflow-hidden" role="progressbar" aria-valuenow="${pctAssign}" aria-valuemin="0" aria-valuemax="100" aria-label="Progres pengumpulan nilai semester">
+            <div class="h-full bg-[#136048] transition-all duration-300" style="width: ${pctAssign}%"></div>
+          </div>
+          <div class="flex flex-wrap items-center justify-between gap-3 pt-1">
+            <div class="text-xs text-slate-600">
+              <b class="text-[#0f4c3a] tabular-nums">${readyClasses}</b> dari <b class="tabular-nums">${(state.classes || []).length}</b> kelas sudah 100% terkirim &bull; KKM Aktif: <b class="tabular-nums">${getActiveKkm()}</b>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+              <button type="button" onclick="navigate('status-nilai')" class="px-3 py-1.5 rounded-lg border-2 border-[#136048] bg-white hover:bg-[#f0f7f4] text-[#0f4c3a] text-xs font-bold transition">Status Nilai</button>
+              <button type="button" onclick="navigate('rapor-siswa')" class="px-3.5 py-1.5 rounded-lg bg-[#0f4c3a] hover:bg-[#0b3b2e] text-[#f3e3b0] border-b-2 border-[#c9a227] text-xs font-bold shadow-sm transition">Cetak Rapor &amp; Ranking</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="rdp-card overflow-hidden">
+          <div class="px-5 py-3.5 border-b border-[#e7dcc3] bg-[#fbf8f1] flex flex-wrap items-center justify-between gap-2">
+            <h2 class="font-bold text-base text-[#0f4c3a]">Aktivitas Terbaru</h2>
+            <input id="activity-search-input" type="search" aria-label="Cari aktivitas" value="${escapeHtml(state.activitySearch)}" oninput="updateSearchAndRender('activity-search-input', 'activitySearch', this.value)" placeholder="Cari aktivitas..." class="w-full sm:w-56 border border-[#e7dcc3] bg-white rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-[#c9a227]" />
+          </div>
+          <div class="p-4">
+            ${filtered.length === 0 ? `
+              <div role="status" class="py-8 px-4 text-center border border-dashed border-[#e7dcc3] rounded-xl bg-[#fbf8f1]/60 space-y-2">
+                <div class="text-sm font-bold text-[#0f4c3a]">${q ? 'Aktivitas tidak ditemukan' : 'Belum ada catatan aktivitas'}</div>
+                <p class="text-xs text-slate-600">${q ? `Tidak ada log aktivitas yang cocok dengan "${escapeHtml(state.activitySearch)}".` : 'Aktivitas login, unggah nilai, dan perubahan pengaturan akan muncul di sini.'}</p>
+                ${q ? `<button type="button" onclick="updateSearchAndRender('activity-search-input', 'activitySearch', '')" class="mt-1 px-3 py-1.5 rounded-lg border border-[#136048] bg-white hover:bg-[#f0f7f4] text-[#0f4c3a] text-xs font-semibold">Reset Pencarian</button>` : ''}
+              </div>
+            ` : `
+              <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse text-sm border border-[#e7dcc3]">
+                  <thead>
+                    <tr class="bg-slate-50 border-b border-[#e7dcc3] font-bold text-[#0f4c3a] text-xs">
+                      <th class="px-3 py-2.5 border-r">User</th>
+                      <th class="px-3 py-2.5 border-r">Level</th>
+                      <th class="px-3 py-2.5 border-r">Aktivitas</th>
+                      <th class="px-3 py-2.5">Waktu</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-[#e7dcc3]">
+                    ${filtered.map(a => `
+                      <tr class="hover:bg-[#fbf8f1]/70">
+                        <td class="px-3 py-2 border-r font-semibold text-slate-900">${escapeHtml(a.user)}</td>
+                        <td class="px-3 py-2 border-r"><span class="px-2 py-0.5 rounded-full bg-[#fbf8f1] border border-[#e7dcc3] text-xs font-semibold text-[#0f4c3a]">${escapeHtml(a.level)}</span></td>
+                        <td class="px-3 py-2 border-r text-slate-700">${escapeHtml(a.activity)}</td>
+                        <td class="px-3 py-2 text-xs text-slate-500 whitespace-nowrap">${escapeHtml(a.time)}</td>
+                      </tr>
+                    `).join('')}
+                  </tbody>
+                </table>
+              </div>
+            `}
+          </div>
+        </div>
+      </div>
+
+      <div class="space-y-5 min-w-0">
+        <div class="rdp-card p-5 space-y-3">
+          <h2 class="text-base font-bold text-[#0f4c3a]">Aksi Cepat</h2>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2.5">
+            ${quickActions.map(act => `
+              <button type="button" onclick="navigate('${act.page}')" class="w-full p-3 rounded-xl border border-[#e7dcc3] bg-[#fbf8f1]/70 hover:bg-[#f3ead6] text-left transition flex items-center gap-3 group">
+                <span class="w-9 h-9 rounded-lg bg-[#0f4c3a] text-[#f3e3b0] flex items-center justify-center p-2 flex-shrink-0">${act.icon}</span>
+                <span class="min-w-0 flex-1">
+                  <span class="block text-sm font-bold text-[#0f4c3a] group-hover:underline truncate">${escapeHtml(act.label)}</span>
+                  <span class="block text-xs text-slate-600 truncate">${escapeHtml(act.desc)}</span>
+                </span>
+              </button>
+            `).join('')}
+          </div>
+        </div>
+
+        <div class="rdp-card p-5 bg-[#fbf8f1] space-y-3 text-xs">
+          <div class="flex items-center justify-between gap-2 border-b border-[#e7dcc3] pb-2.5">
+            <h2 class="text-sm font-bold text-[#0f4c3a]">Ringkasan Lembaga</h2>
+            <span class="px-2 py-0.5 rounded-full bg-white border border-[#e7dcc3] text-xs font-semibold text-[#a07d18]">RDP v4.0</span>
+          </div>
+          <dl class="space-y-2 text-slate-700">
+            <div class="flex justify-between gap-2"><dt class="text-slate-500">Kepala:</dt><dd class="font-semibold text-right">${escapeHtml(p.kepala || '-')}</dd></div>
+            <div class="flex justify-between gap-2"><dt class="text-slate-500">Tahun Pelajaran:</dt><dd class="font-semibold">${escapeHtml(p.tahun || '2026/2027')}</dd></div>
+            <div class="flex justify-between gap-2"><dt class="text-slate-500">Semester:</dt><dd class="font-semibold">${escapeHtml(p.semester || 'Ganjil')}</dd></div>
+            <div class="flex justify-between gap-2"><dt class="text-slate-500">KKM Default:</dt><dd class="font-bold text-[#0f4c3a] tabular-nums">${getActiveKkm()}</dd></div>
+            <div class="flex justify-between gap-2"><dt class="text-slate-500">Tanggal Rapor:</dt><dd class="font-semibold">${escapeHtml(p.tanggalIso || '-')}</dd></div>
+          </dl>
+          <button type="button" onclick="navigate('pengaturan')" class="w-full py-2 px-3 rounded-lg border border-[#136048] bg-white hover:bg-[#f0f7f4] text-[#0f4c3a] text-xs font-bold transition">
+            Buka Pengaturan Lembaga
+          </button>
+        </div>
       </div>
     </div>
   `;
@@ -2493,7 +2924,13 @@ async function assignWaliKelas(classId, teacherId) {
 async function deleteClass(classId) {
   const cls = state.classes.find(c => c.id === classId);
   if (!cls) return;
-  if (!confirm(`Hapus Kelas ${cls.kode}? Penugasan mengajar pada kelas ini juga akan dihapus.`)) return;
+  const ok = await openConfirmModal({
+    title: 'Hapus Kelas',
+    message: `Hapus Kelas ${cls.kode}? Penugasan mengajar pada kelas ini juga akan dihapus.`,
+    confirmText: 'Hapus Kelas',
+    variant: 'danger'
+  });
+  if (!ok) return;
   const res = await apiCall('DELETE', `/api/classes/${classId}`);
   if (!res || !res.ok) return;
   state.teachers.forEach(t => {
@@ -2764,7 +3201,13 @@ async function toggleTeacherActive(id, nextActive) {
   const target = state.teachers.find(t => t.id === id);
   if (!target) return;
   const label = nextActive ? 'Aktifkan kembali' : 'Nonaktifkan';
-  if (!confirm(`${label} guru "${target.nama}"?${nextActive ? '' : ' Guru tidak bisa login dan tidak muncul di pilihan penugasan baru, namun arsip nilai & rapor tetap aman.'}`)) return;
+  const ok = await openConfirmModal({
+    title: `${label} Guru`,
+    message: `${label} guru "${target.nama}"?${nextActive ? '' : ' Guru tidak bisa login dan tidak muncul di pilihan penugasan baru, namun arsip nilai & rapor tetap aman.'}`,
+    confirmText: label,
+    variant: nextActive ? 'primary' : 'warning'
+  });
+  if (!ok) return;
   const res = await apiCall('PUT', `/api/teachers/${encodeURIComponent(id)}/active`, { active: nextActive });
   if (!res || !res.ok) return;
   target.active = nextActive;
@@ -2788,7 +3231,13 @@ async function updateTeacher(id, field, val) {
 async function deleteTeacher(id) {
   if (state.teachers.length <= 1) { showToast('Minimal 1 guru harus ada'); return; }
   const target = state.teachers.find(t => t.id === id);
-  if (!confirm(`Hapus permanen guru "${target ? target.nama : id}"? (Jika guru memiliki riwayat penugasan/wali kelas, gunakan tombol Nonaktifkan)`)) return;
+  const ok = await openConfirmModal({
+    title: 'Hapus Permanen Guru',
+    message: `Hapus permanen guru "${target ? target.nama : id}"?\n(Jika guru memiliki riwayat penugasan/wali kelas, gunakan tombol Nonaktifkan.)`,
+    confirmText: 'Hapus Permanen',
+    variant: 'danger'
+  });
+  if (!ok) return;
   const res = await apiCall('DELETE', `/api/teachers/${encodeURIComponent(id)}`);
   if (!res || !res.ok) return;
   await refreshStateFromServer(true);
@@ -3020,7 +3469,13 @@ async function toggleSubjectActive(id, nextActive) {
   const s = state.subjects.find(x => x.id === id);
   if (!s) return;
   const label = nextActive ? 'Aktifkan kembali' : 'Nonaktifkan';
-  if (!confirm(`${label} mata pelajaran "${s.namaId}"?${nextActive ? '' : ' Mapel disembunyikan dari penugasan/tahun baru, namun arsip nilai & rapor tahun lalu tetap aman.'}`)) return;
+  const ok = await openConfirmModal({
+    title: `${label} Mata Pelajaran`,
+    message: `${label} mata pelajaran "${s.namaId}"?${nextActive ? '' : ' Mapel disembunyikan dari penugasan/tahun baru, namun arsip nilai & rapor tahun lalu tetap aman.'}`,
+    confirmText: label,
+    variant: nextActive ? 'primary' : 'warning'
+  });
+  if (!ok) return;
   const res = await apiCall('PUT', `/api/subjects/${id}/active`, { active: nextActive });
   if (!res || !res.ok) return;
   s.active = nextActive;
@@ -3060,7 +3515,13 @@ async function updateSubject(id, field, val) {
 async function deleteSubject(id) {
   const s = state.subjects.find(x => x.id === id);
   if (!s) return;
-  if (!confirm(`Hapus permanen mata pelajaran "${s.namaId}" (${s.namaArab})? (Jika mapel sudah memiliki nilai/penugasan, gunakan tombol Nonaktifkan)`)) return;
+  const ok = await openConfirmModal({
+    title: 'Hapus Permanen Mata Pelajaran',
+    message: `Hapus permanen mata pelajaran "${s.namaId}" (${s.namaArab})?\n(Jika mapel sudah memiliki nilai/penugasan, gunakan tombol Nonaktifkan.)`,
+    confirmText: 'Hapus Permanen',
+    variant: 'danger'
+  });
+  if (!ok) return;
   const res = await apiCall('DELETE', `/api/subjects/${id}`);
   if (!res || !res.ok) return;
   state.subjects = state.subjects.filter(x => x.id !== id);
@@ -3409,9 +3870,13 @@ async function deleteAllStudentsInClass(kelas) {
     showToast(`Tidak ada santri di Kelas ${kelas}`);
     return;
   }
-  if (!confirm(`Hapus SEMUA ${count} anggota santri di Kelas ${kelas}? Data nilai dan akun login santri di kelas ini juga akan dihapus.`)) {
-    return;
-  }
+  const ok = await openConfirmModal({
+    title: `Hapus Semua Santri Kelas ${kelas}`,
+    message: `Hapus SEMUA ${count} anggota santri di Kelas ${kelas}? Data nilai dan akun login santri di kelas ini juga akan dihapus permanen.`,
+    confirmText: `Hapus ${count} Santri`,
+    variant: 'danger'
+  });
+  if (!ok) return;
   const res = await apiCall('DELETE', `/api/students?kelas=${encodeURIComponent(kelas)}&tahun=${encodeURIComponent(state.pesantren.tahun || '')}`);
   if (res && res.ok) {
     state.students = state.students.filter(s => s.kelas !== kelas);
@@ -3425,38 +3890,129 @@ async function deleteAllStudentsInClass(kelas) {
 function renderGuruDashboard() {
   const g = getCurrentTeacher();
   if (!g) {
-    return `<div class="bg-white rounded border border-[#e7dcc3] p-6 text-xs text-slate-600">Data profil guru belum tertaut ke akun ini. Hubungi Admin / Proktor.</div>`;
+    return `<div class="rdp-card p-6 text-sm text-slate-600">Data profil guru belum tertaut ke akun ini. Hubungi Admin / Proktor.</div>`;
   }
   const mine = getTeacherAssignments();
+  const totalMine = mine.length;
+  const sentMine = mine.filter(k => k.sent).length;
+  const pctMine = totalMine > 0 ? Math.round((sentMine / totalMine) * 100) : 0;
+  const p = state.pesantren || {};
+  const waliKelasKode = getWaliKelasKode();
+
   return `
-    <div class="grid lg:grid-cols-3 gap-5">
-      <div class="bg-white rounded border border-[#e7dcc3] shadow-sm p-5 text-center">
-        <div class="w-20 h-20 rounded-full bg-[#0f4c3a] text-white font-bold text-2xl flex items-center justify-center mx-auto mb-3 shadow">${escapeHtml(g.initials)}</div>
-        <h2 class="font-bold text-base text-slate-900">${escapeHtml(g.nama)}</h2>
-        <div class="text-xs text-slate-500 mt-0.5">${escapeHtml(g.role)} • NUPTK: <span class="font-mono">${escapeHtml(g.nuptk)}</span></div>
-        <div class="mt-5 pt-4 border-t border-slate-200 text-left text-xs space-y-2">
-          <div class="font-bold text-slate-800">Wali Kelas: ${g.waliKelas ? `Kelas ${escapeHtml(g.waliKelas)}` : 'Bukan wali kelas'}</div>
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <h1 class="text-xl sm:text-2xl font-extrabold text-[#0f4c3a]">Dashboard Guru &amp; Wali Kelas</h1>
+        <p class="text-xs sm:text-sm text-slate-600 mt-0.5">Kelola input nilai mata pelajaran dan status pengiriman kelas Anda.</p>
+      </div>
+      <span class="px-3 py-1.5 rounded-full bg-white border border-[#e7dcc3] text-xs font-semibold text-[#0f4c3a] shadow-sm">
+        Semester ${escapeHtml(p.semester || 'Ganjil')} &bull; ${escapeHtml(p.tahun || '2026/2027')}
+      </span>
+    </div>
+
+    <!-- GOLDEN RATIO 2-COLUMN LAYOUT (~38.5% : 61.5% = 5fr : 8fr) -->
+    <div class="grid grid-cols-1 lg:grid-cols-[5fr_8fr] gap-5 items-start">
+      <div class="space-y-4 min-w-0">
+        <div class="rdp-card p-5 text-center space-y-3">
+          <div class="w-20 h-20 rounded-full bg-[#0f4c3a] text-[#f3e3b0] border-2 border-[#c9a227] font-bold text-2xl flex items-center justify-center mx-auto shadow">${escapeHtml(g.initials)}</div>
+          <div>
+            <h2 class="font-bold text-base text-slate-900">${escapeHtml(g.nama)}</h2>
+            <div class="text-xs text-slate-500 mt-0.5">${escapeHtml(g.role)} &bull; NUPTK: <span class="font-mono">${escapeHtml(g.nuptk)}</span></div>
+          </div>
+          <div class="pt-3 border-t border-[#e7dcc3] text-left text-xs space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="font-semibold text-slate-600">Progres Pengiriman Nilai</span>
+              <span class="font-bold text-[#0f4c3a] tabular-nums">${sentMine} / ${totalMine} (${pctMine}%)</span>
+            </div>
+            <div class="w-full h-2.5 rounded-full bg-[#efe7d6] overflow-hidden" role="progressbar" aria-valuenow="${pctMine}" aria-valuemin="0" aria-valuemax="100">
+              <div class="h-full bg-[#136048] transition-all duration-300" style="width: ${pctMine}%"></div>
+            </div>
+            <div class="text-slate-600 pt-1">
+              Wali Kelas: <b class="text-[#0f4c3a]">${waliKelasKode ? `Kelas ${escapeHtml(waliKelasKode)}` : 'Bukan wali kelas'}</b>
+            </div>
+          </div>
         </div>
+
+        ${waliKelasKode ? `
+          <div class="rdp-card p-4 bg-[#fbf8f1] space-y-2.5">
+            <div class="flex items-center justify-between gap-2">
+              <h2 class="text-sm font-bold text-[#0f4c3a]">Pintasan Wali Kelas ${escapeHtml(waliKelasKode)}</h2>
+              <span class="px-2 py-0.5 rounded-full bg-white border border-[#e7dcc3] text-xs font-semibold text-[#a07d18]">Wali Kelas</span>
+            </div>
+            <div class="grid grid-cols-1 gap-2">
+              <button type="button" onclick="navigate('status-nilai-kelas')" class="w-full px-3 py-2 rounded-lg border border-[#136048] bg-white hover:bg-[#f0f7f4] text-[#0f4c3a] text-xs font-bold text-left transition flex items-center justify-between">
+                <span>Status Nilai Kelas ${escapeHtml(waliKelasKode)}</span><span>&rarr;</span>
+              </button>
+              <button type="button" onclick="navigate('rapor-siswa')" class="w-full px-3 py-2 rounded-lg bg-[#0f4c3a] hover:bg-[#0b3b2e] text-[#f3e3b0] border-b-2 border-[#c9a227] text-xs font-bold text-left transition flex items-center justify-between">
+                <span>Cetak Rapor &amp; Ranking</span><span>&rarr;</span>
+              </button>
+              <button type="button" onclick="navigate('legger')" class="w-full px-3 py-2 rounded-lg border border-[#e7dcc3] bg-white hover:bg-[#f3ead6] text-[#0f4c3a] text-xs font-semibold text-left transition flex items-center justify-between">
+                <span>Ledger Kelas (Excel)</span><span>&rarr;</span>
+              </button>
+            </div>
+          </div>
+        ` : ''}
       </div>
 
-      <div class="lg:col-span-2 bg-white rounded border border-[#e7dcc3] shadow-sm overflow-hidden">
-        <div class="px-5 py-3 border-b border-[#e7dcc3] bg-[#fbf8f1] flex items-center justify-between">
-          <span class="font-bold text-sm text-slate-800">Kelas Anda</span>
-          <span class="text-[11px] text-slate-500">Hanya menampilkan mapel &amp; kelas milik <b>${escapeHtml(g.nama)}</b></span>
+      <div class="rdp-card overflow-hidden min-w-0">
+        <div class="px-5 py-3.5 border-b border-[#e7dcc3] bg-[#fbf8f1] flex flex-wrap items-center justify-between gap-2">
+          <h2 class="font-bold text-base text-[#0f4c3a]">Kelas Mengajar Anda</h2>
+          <span class="text-xs text-slate-600">Menampilkan ${totalMine} penugasan aktif milik <b>${escapeHtml(g.nama)}</b></span>
         </div>
-        <table class="w-full text-left border-collapse text-xs">
-          <thead><tr class="bg-slate-50 border-b border-[#e7dcc3] font-bold"><th class="px-4 py-2.5">Kelas</th><th class="px-4 py-2.5">Mapel</th><th class="px-4 py-2.5 text-center">Status</th><th class="px-4 py-2.5 text-center">Aksi</th></tr></thead>
-          <tbody class="divide-y divide-[#e7dcc3]">
-            ${mine.map(k => `
-              <tr>
-                <td class="px-4 py-2.5 font-semibold">${escapeHtml(k.kelas)}</td>
-                <td class="px-4 py-2.5 arabic-font text-base">${escapeHtml(k.mapel)}</td>
-                <td class="px-4 py-2.5 text-center"><span class="px-2 py-0.5 rounded-full text-[11px] font-semibold ${k.sent ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">${k.sent ? 'Terkirim' : 'Draf'}</span></td>
-                <td class="px-4 py-2.5 text-center"><button data-kelas="${escapeHtml(k.kode)}" data-mapel="${escapeHtml(k.mapel)}" onclick="navigate('penilaian',{kelas:this.dataset.kelas,mapel:this.dataset.mapel})" class="px-2.5 py-1 rounded bg-[#136048] text-white text-[11px] font-semibold">Input Nilai</button></td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
+        ${mine.length === 0 ? `
+          <div role="status" class="p-8 text-center space-y-2">
+            <div class="text-sm font-bold text-[#0f4c3a]">Belum ada jadwal mengajar yang ditugaskan</div>
+            <p class="text-xs text-slate-600">Hubungi Proktor / Admin Pesantren untuk menambahkan penugasan kelas &amp; mata pelajaran Anda.</p>
+          </div>
+        ` : `
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-sm">
+              <thead>
+                <tr class="bg-slate-50 border-b border-[#e7dcc3] font-bold text-[#0f4c3a] text-xs">
+                  <th class="px-4 py-3">Kelas</th>
+                  <th class="px-4 py-3">Mata Pelajaran</th>
+                  <th class="px-4 py-3 text-center">Kelengkapan</th>
+                  <th class="px-4 py-3 text-center">Status</th>
+                  <th class="px-4 py-3 text-center">Aksi</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-[#e7dcc3]">
+                ${mine.map(k => {
+                  const sub = state.subjects.find(s => s.namaArab === k.mapel);
+                  const clsStudents = state.students.filter(st => st.kelas === k.kode);
+                  const filled = sub ? clsStudents.filter(st => hasScoreValue(st.scores && st.scores[sub.id])).length : 0;
+                  const totalSt = clsStudents.length;
+                  const fillPct = totalSt > 0 ? Math.round((filled / totalSt) * 100) : 0;
+                  return `
+                    <tr class="hover:bg-[#fbf8f1]/70">
+                      <td class="px-4 py-3 font-bold text-slate-900 whitespace-nowrap">${escapeHtml(k.kelas)}</td>
+                      <td class="px-4 py-3">
+                        <div class="arabic-font text-base font-bold text-[#0f4c3a]">${escapeHtml(k.mapel)}</div>
+                        ${sub ? `<div class="text-xs text-slate-500">${escapeHtml(sub.namaId)}</div>` : ''}
+                      </td>
+                      <td class="px-4 py-3 text-center">
+                        <div class="text-xs font-semibold tabular-nums text-slate-700">${filled} / ${totalSt}</div>
+                        <div class="w-20 h-1.5 rounded-full bg-[#efe7d6] overflow-hidden mx-auto mt-1">
+                          <div class="h-full bg-[#136048]" style="width: ${fillPct}%"></div>
+                        </div>
+                      </td>
+                      <td class="px-4 py-3 text-center">
+                        <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap ${k.sent ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">
+                          ${k.sent ? '✓ Terkirim' : '● Draf'}
+                        </span>
+                      </td>
+                      <td class="px-4 py-3 text-center">
+                        <button type="button" data-kelas="${escapeHtml(k.kode)}" data-mapel="${escapeHtml(k.mapel)}" onclick="navigate('penilaian',{kelas:this.dataset.kelas,mapel:this.dataset.mapel})" class="px-3 py-1.5 rounded-lg ${k.sent ? 'border border-[#136048] bg-white text-[#0f4c3a] hover:bg-[#f0f7f4]' : 'bg-[#136048] hover:bg-[#0b3b2e] text-white'} text-xs font-semibold whitespace-nowrap transition">
+                          ${k.sent ? 'Lihat Nilai' : 'Input Nilai'}
+                        </button>
+                      </td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        `}
       </div>
     </div>
   `;
@@ -3712,7 +4268,13 @@ async function deleteAssignment(id) {
 
 async function deleteAssignmentGroup(ids) {
   if (!Array.isArray(ids) || ids.length === 0) return;
-  if (!confirm(`Hapus ${ids.length} penugasan mengajar tersebut?`)) return;
+  const ok = await openConfirmModal({
+    title: 'Hapus Penugasan Mengajar',
+    message: `Hapus ${ids.length} penugasan mengajar tersebut?`,
+    confirmText: 'Hapus Penugasan',
+    variant: 'danger'
+  });
+  if (!ok) return;
   const res = await apiCall('POST', '/api/assignments/delete-batch', { ids });
   if (!res || !res.ok) return;
   const idSet = new Set(ids);
@@ -3830,140 +4392,250 @@ async function savePenilaianToServer(assignId, subId, kelasKode, silent = false)
       score: hasScoreValue(raw) ? Math.min(100, Math.max(0, Math.round(Number(raw)))) : null
     };
   });
-  const res = await apiCall('PUT', '/api/scores', {
-    tahun: state.pesantren.tahun,
-    semester: state.pesantren.semester,
-    scores: bulk
-  });
-  if (!res || !res.ok) return false;
-  try { localStorage.removeItem(getDraftStorageKey(kelasKode, subId)); } catch (_) {}
-  const badge = document.getElementById('penilaian-save-status');
-  if (badge) {
-    badge.className = 'inline-block px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-semibold';
-    badge.textContent = 'Tersimpan di server';
+  setButtonBusy('btn-save-nilai-top', true, 'Menyimpan...');
+  setButtonBusy('btn-save-nilai-foot', true, 'Menyimpan...');
+  try {
+    const res = await apiCall('PUT', '/api/scores', {
+      tahun: state.pesantren.tahun,
+      semester: state.pesantren.semester,
+      scores: bulk
+    });
+    if (!res || !res.ok) return false;
+    try { localStorage.removeItem(getDraftStorageKey(kelasKode, subId)); } catch (_) {}
+    const badge = document.getElementById('penilaian-save-status');
+    if (badge) {
+      badge.className = 'inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-semibold';
+      badge.textContent = 'Tersimpan di server';
+    }
+    if (!silent) showToast(`Nilai Kelas ${kelasKode} (${bulk.length} santri) berhasil disimpan ke server!`);
+    return true;
+  } finally {
+    setButtonBusy('btn-save-nilai-top', false);
+    setButtonBusy('btn-save-nilai-foot', false);
   }
-  if (!silent) showToast(`Nilai Kelas ${kelasKode} (${bulk.length} santri) berhasil disimpan ke server!`);
-  return true;
 }
 
 async function toggleAssignmentSent(assignId, subId, kelasKode) {
   const kObj = state.assignments.find(k => k.id === assignId);
   if (!kObj) return;
   const nextSent = !kObj.sent;
-  if (nextSent && subId && kelasKode) {
-    const saved = await savePenilaianToServer(assignId, subId, kelasKode, false);
-    if (!saved) return;
+  setButtonBusy('btn-send-nilai-top', true, nextSent ? 'Mengirim...' : 'Membuka...');
+  setButtonBusy('btn-send-nilai-foot', true, nextSent ? 'Mengirim...' : 'Membuka...');
+  try {
+    if (nextSent && subId && kelasKode) {
+      const saved = await savePenilaianToServer(assignId, subId, kelasKode, false);
+      if (!saved) return;
+    }
+    const res = await apiCall('PUT', '/api/assignments/' + kObj.id, {
+      sent: nextSent,
+      tahun: state.pesantren.tahun,
+      semester: state.pesantren.semester
+    });
+    if (!res || !res.ok) return;
+    kObj.sent = nextSent;
+    if (subId && kelasKode) {
+      try { localStorage.removeItem(getDraftStorageKey(kelasKode, subId)); } catch (_) {}
+    }
+    renderSidebar();
+    renderPage();
+    showToast(kObj.sent ? `Nilai ${kObj.kelas} disimpan, dikirim & dikunci` : `Status nilai ${kObj.kelas} dikembalikan ke Draf (dapat diedit lagi)`);
+  } finally {
+    setButtonBusy('btn-send-nilai-top', false);
+    setButtonBusy('btn-send-nilai-foot', false);
   }
-  const res = await apiCall('PUT', '/api/assignments/' + kObj.id, {
-    sent: nextSent,
-    tahun: state.pesantren.tahun,
-    semester: state.pesantren.semester
+}
+
+function handleNilaiKeydown(ev, idx, attrPrefix = 'row') {
+  if (!ev) return;
+  let delta = 0;
+  if (ev.key === 'Enter' || ev.key === 'ArrowDown') delta = 1;
+  else if (ev.key === 'ArrowUp') delta = -1;
+  if (delta === 0) return;
+  const selector = attrPrefix === 'mob' ? `[data-mob-row-idx="${idx + delta}"]` : `[data-row-idx="${idx + delta}"]`;
+  const target = document.querySelector(selector);
+  if (target && !target.disabled) {
+    ev.preventDefault();
+    target.focus();
+    if (typeof target.select === 'function') target.select();
+  }
+}
+
+function updatePenilaianFilledCount(kelasKode, subId) {
+  const countEl = document.getElementById('penilaian-filled-count');
+  const barEl = document.getElementById('penilaian-filled-bar');
+  if (!countEl && !barEl) return;
+  const targets = state.students.filter(st => st.kelas === kelasKode);
+  const total = targets.length;
+  const filled = targets.filter(st => hasScoreValue(st.scores && st.scores[subId])).length;
+  const pct = total > 0 ? Math.round((filled / total) * 100) : 0;
+  if (countEl) countEl.textContent = `${filled} / ${total}`;
+  if (barEl) barEl.style.width = `${pct}%`;
+}
+
+function syncPenilaianCellUi(studentId, numVal, jamNum, sourceId = null) {
+  const hasVal = hasScoreValue(numVal);
+  const isLow = hasVal && numVal < 60;
+  const isBelowKkm = hasVal && numVal < getActiveKkm();
+  const deskCls = `w-20 border ${isLow ? 'border-amber-500 bg-amber-50 text-amber-900' : 'border-slate-300 bg-white'} rounded-lg px-2 py-1.5 text-center text-sm font-semibold tabular-nums`;
+  const mobCls = `w-20 h-11 border ${isLow ? 'border-amber-500 bg-amber-50 text-amber-900' : 'border-slate-300 bg-white'} rounded-lg px-2 py-1.5 text-center text-base font-bold tabular-nums`;
+
+  [
+    { id: `nilai-cell-${studentId}`, cls: deskCls },
+    { id: `nilai-mob-${studentId}`, cls: mobCls }
+  ].forEach(({ id, cls }) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (id !== sourceId || (hasVal && String(el.value) !== String(numVal) && (Number(el.value) > 100 || Number(el.value) < 0))) {
+      el.value = hasVal ? numVal : '';
+    }
+    el.className = cls;
   });
-  if (!res || !res.ok) return;
-  kObj.sent = nextSent;
-  if (subId && kelasKode) {
-    try { localStorage.removeItem(getDraftStorageKey(kelasKode, subId)); } catch (_) {}
-  }
-  renderSidebar();
-  renderPage();
-  showToast(kObj.sent ? `Nilai ${kObj.kelas} disimpan, dikirim & dikunci` : `Status nilai ${kObj.kelas} dikembalikan ke Draf (dapat diedit lagi)`);
+
+  [
+    `jumlah-cell-${studentId}`,
+    `jumlah-mob-${studentId}`
+  ].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = hasVal ? numVal * jamNum : '–';
+  });
+
+  [
+    `pred-cell-${studentId}`,
+    `pred-mob-${studentId}`
+  ].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.textContent = hasVal ? getPredikatArab(numVal) : '–';
+      el.classList.toggle('text-[#d90000]', isBelowKkm);
+    }
+  });
+
+  [
+    `typo-warn-${studentId}`,
+    `typo-warn-mob-${studentId}`
+  ].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle('hidden', !isLow);
+  });
+
+  [
+    `kkm-badge-${studentId}`,
+    `kkm-badge-mob-${studentId}`
+  ].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle('hidden', !isBelowKkm);
+  });
 }
 
 function renderPenilaian() {
   const mine = getTeacherAssignments();
   const kObj = mine.find(k => k.kode === state.selectedKelasMengajar && k.mapel === state.selectedMapelMengajar) || mine[0];
-  if (!kObj) return `<div class="bg-white rounded border p-6 text-xs">Tidak ada mapel yang ditugaskan.</div>`;
+  if (!kObj) return `<div class="rdp-card p-6 text-sm text-slate-600">Tidak ada mapel yang ditugaskan.</div>`;
   state.selectedKelasMengajar = kObj.kode;
   state.selectedMapelMengajar = kObj.mapel;
   const sub = state.subjects.find(s => s.namaArab === kObj.mapel);
-  if (!sub) return `<div class="bg-white rounded border border-rose-200 bg-rose-50 p-6 text-xs text-rose-800">Mata pelajaran <b>${escapeHtml(kObj.mapel)}</b> tidak ditemukan pada daftar mata pelajaran. Hubungi Proktor/Admin.</div>`;
+  if (!sub) return `<div class="rdp-card border-rose-200 bg-rose-50 p-6 text-sm text-rose-800">Mata pelajaran <b>${escapeHtml(kObj.mapel)}</b> tidak ditemukan pada daftar mata pelajaran. Hubungi Proktor/Admin.</div>`;
   const curTeacher = getCurrentTeacher();
   const isLocked = Boolean(kObj.sent);
   const hasLocalDraft = !isLocked && loadLocalScoreDraft(kObj.kode, sub.id);
   const classStudents = state.students.filter(st => st.kelas === kObj.kode);
+  const filledCount = classStudents.filter(st => hasScoreValue(st.scores && st.scores[sub.id])).length;
+  const fillPct = classStudents.length > 0 ? Math.round((filledCount / classStudents.length) * 100) : 0;
+  const activeKkm = getActiveKkm();
   const report = (state.nilaiUploadReport && state.nilaiUploadReport.kelasKode === kObj.kode && state.nilaiUploadReport.subId === sub.id)
     ? state.nilaiUploadReport
     : null;
   const jamNum = Number(sub.jam) || 0;
 
   return `
-    <div class="bg-white rounded border border-[#e7dcc3] shadow-sm p-4 flex flex-wrap items-center justify-between gap-3">
-      <div>
-        <div class="flex flex-wrap items-center gap-2">
-          <span class="text-sm font-bold text-[#0f4c3a]">Input Nilai: ${escapeHtml(sub.namaId)} (<span class="arabic-font text-lg">${escapeHtml(kObj.mapel)}</span>) — ${escapeHtml(kObj.kelas)}</span>
-          <span id="penilaian-save-status" class="inline-block px-2 py-0.5 rounded border text-[11px] font-semibold ${isLocked ? 'bg-sky-100 text-sky-900 border-sky-300' : (hasLocalDraft ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-emerald-100 text-emerald-800 border-emerald-300')}">
-            ${isLocked ? '🔒 Terkirim & Terkunci' : (hasLocalDraft ? 'Tersimpan lokal (belum di-Save ke server)' : 'Tersimpan di server')}
-          </span>
+    <div class="rdp-card p-4 sm:p-5 space-y-3">
+      <div class="flex flex-wrap items-start justify-between gap-3">
+        <div class="space-y-1.5">
+          <div class="flex flex-wrap items-center gap-2">
+            <h1 class="text-base sm:text-lg font-extrabold text-[#0f4c3a]">Input Nilai: ${escapeHtml(sub.namaId)} (<span class="arabic-font text-xl">${escapeHtml(kObj.mapel)}</span>) — ${escapeHtml(kObj.kelas)}</h1>
+            <span id="penilaian-save-status" class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full border text-xs font-semibold ${isLocked ? 'bg-sky-100 text-sky-900 border-sky-300' : (hasLocalDraft ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-emerald-100 text-emerald-800 border-emerald-300')}">
+              ${isLocked ? '🔒 Terkirim & Terkunci' : (hasLocalDraft ? 'Tersimpan lokal (belum di-Save)' : 'Tersimpan di server')}
+            </span>
+          </div>
+          <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-600">
+            <span>Pengampu: <b>${escapeHtml(curTeacher ? curTeacher.nama : '-')}</b></span>
+            <span>&bull; Jam (الساعات): <b>${jamNum}</b></span>
+            <span>&bull; KKM: <b>${activeKkm}</b></span>
+            <span>&bull; Terisi: <b id="penilaian-filled-count" class="tabular-nums text-[#0f4c3a]">${filledCount} / ${classStudents.length}</b> santri</span>
+          </div>
+          <div class="w-full max-w-xs h-1.5 rounded-full bg-[#efe7d6] overflow-hidden" aria-hidden="true">
+            <div id="penilaian-filled-bar" class="h-full bg-[#136048] transition-all duration-200" style="width: ${fillPct}%"></div>
+          </div>
         </div>
-        <div class="text-xs text-slate-500 mt-0.5">Pengampu: <b>${escapeHtml(curTeacher ? curTeacher.nama : '-')}</b> • Jam (الساعات): <b>${jamNum}</b> • Jumlah Santri: <b>${classStudents.length}</b></div>
-      </div>
-      <div class="flex flex-wrap items-center gap-2">
-        <button type="button" data-kelas="${escapeHtml(kObj.kode)}" onclick="downloadNilaiTemplate(${sub.id}, this.dataset.kelas)" class="px-3 py-1.5 rounded border border-[#0f4c3a] bg-[#fbf8f1] hover:bg-[#efe6d0] text-[#0f4c3a] text-xs font-semibold shadow-sm flex items-center gap-1.5">
-          <span>⬇</span> Download Template
-        </button>
-        ${isLocked ? '' : `
-          <label class="px-3 py-1.5 rounded border border-[#c9a227] bg-[#fdfaf2] hover:bg-[#f5ebd0] text-[#7c5e10] text-xs font-semibold shadow-sm cursor-pointer flex items-center gap-1.5">
-            <span>⬆</span> Upload Nilai
-            <input type="file" accept=".xlsx,.xls,.csv" class="hidden" data-kelas="${escapeHtml(kObj.kode)}" onchange="handleNilaiUpload(event, ${kObj.id}, ${sub.id}, ${jamNum}, this.dataset.kelas)" />
-          </label>
-          <button data-kelas="${escapeHtml(kObj.kode)}" onclick="savePenilaianToServer(${kObj.id}, ${sub.id}, this.dataset.kelas)" class="px-3.5 py-1.5 rounded bg-[#136048] hover:bg-[#0b3b2e] text-white text-xs font-semibold shadow-sm">
-            Save Nilai
+        <div class="flex flex-wrap items-center gap-2">
+          <button type="button" data-kelas="${escapeHtml(kObj.kode)}" onclick="downloadNilaiTemplate(${sub.id}, this.dataset.kelas)" class="px-3 py-2 rounded-lg border border-[#e7dcc3] bg-[#fbf8f1] hover:bg-[#efe6d0] text-[#0f4c3a] text-xs font-semibold transition flex items-center gap-1.5">
+            <span>⬇</span> Download Template
           </button>
-        `}
-        <button data-kelas="${escapeHtml(kObj.kode)}" onclick="toggleAssignmentSent(${kObj.id}, ${sub.id}, this.dataset.kelas)" class="px-3.5 py-1.5 rounded ${isLocked ? 'bg-amber-600 hover:bg-amber-700' : 'bg-[#136048] hover:bg-[#0b3b2e]'} text-white text-xs font-semibold shadow-sm">
-          ${isLocked ? 'Batalkan Kirim' : 'Kirim Nilai'}
-        </button>
+          ${isLocked ? '' : `
+            <label class="px-3 py-2 rounded-lg border border-[#c9a227] bg-[#fdfaf2] hover:bg-[#f5ebd0] text-[#7c5e10] text-xs font-semibold cursor-pointer transition flex items-center gap-1.5">
+              <span>⬆</span> Upload Nilai
+              <input type="file" accept=".xlsx,.xls,.csv" class="hidden" data-kelas="${escapeHtml(kObj.kode)}" onchange="handleNilaiUpload(event, ${kObj.id}, ${sub.id}, ${jamNum}, this.dataset.kelas)" />
+            </label>
+            <button id="btn-save-nilai-top" type="button" data-kelas="${escapeHtml(kObj.kode)}" onclick="savePenilaianToServer(${kObj.id}, ${sub.id}, this.dataset.kelas)" class="px-3.5 py-2 rounded-lg border-2 border-[#136048] bg-white hover:bg-[#f0f7f4] text-[#0f4c3a] text-xs font-bold transition">
+              Save Nilai
+            </button>
+          `}
+          <button id="btn-send-nilai-top" type="button" data-kelas="${escapeHtml(kObj.kode)}" onclick="toggleAssignmentSent(${kObj.id}, ${sub.id}, this.dataset.kelas)" class="px-4 py-2 rounded-lg ${isLocked ? 'bg-amber-600 hover:bg-amber-700 text-white' : 'bg-[#0f4c3a] hover:bg-[#0b3b2e] text-[#f3e3b0] border-b-2 border-[#c9a227]'} text-xs font-bold shadow-sm transition">
+            ${isLocked ? 'Batalkan Kirim' : 'Kirim Nilai'}
+          </button>
+        </div>
       </div>
+      ${isLocked ? '' : `<div class="hidden md:block text-xs text-slate-500">Tips input cepat: tekan <b>Enter</b> atau panah <b>↑ / ↓</b> untuk berpindah baris santri.</div>`}
     </div>
     ${isLocked ? `
-      <div class="rounded border border-sky-200 bg-sky-50 px-4 py-2.5 text-xs text-sky-900">
+      <div class="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-xs text-sky-900">
         <b>Nilai sudah dikirim dan dikunci.</b> Jika Anda perlu melakukan perubahan, klik tombol <b>Batalkan Kirim</b> terlebih dahulu.
       </div>
     ` : ''}
     ${report ? `
-      <div class="rounded border ${report.hasMismatch ? 'border-amber-300 bg-amber-50/90 text-amber-950' : 'border-emerald-300 bg-emerald-50/90 text-emerald-950'} p-3.5 shadow-sm text-xs space-y-2">
+      <div class="rounded-xl border ${report.hasMismatch ? 'border-amber-300 bg-amber-50/90 text-amber-950' : 'border-emerald-300 bg-emerald-50/90 text-emerald-950'} p-4 shadow-sm text-xs space-y-2">
         <div class="flex items-start justify-between gap-2">
           <div class="font-bold text-sm flex items-center gap-1.5">
             <span>${report.hasMismatch ? '⚠️ Laporan Validasi NISN Upload Nilai' : '✓ Laporan Upload Nilai'}</span>
-            <span class="text-[11px] font-normal text-slate-600">(${escapeHtml(report.fileName || '')})</span>
+            <span class="text-xs font-normal text-slate-600">(${escapeHtml(report.fileName || '')})</span>
           </div>
-          <button type="button" onclick="clearNilaiUploadReport()" class="px-2 py-0.5 rounded border border-slate-300 bg-white hover:bg-slate-100 text-slate-600 text-[11px] font-semibold">Tutup</button>
+          <button type="button" onclick="clearNilaiUploadReport()" class="px-2.5 py-1 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 text-xs font-semibold">Tutup</button>
         </div>
         <div class="text-xs">
           ${escapeHtml(report.summaryText || '')}
         </div>
         ${report.metaMismatch && report.metaMismatch.length > 0 ? `
-          <div class="p-2 rounded bg-white/80 border border-amber-200 space-y-1">
+          <div class="p-2.5 rounded-lg bg-white/80 border border-amber-200 space-y-1">
             <div class="font-bold text-amber-900">Perbedaan Identitas Template:</div>
-            <ul class="list-disc list-inside space-y-0.5 text-[11px] text-amber-800">
+            <ul class="list-disc list-inside space-y-0.5 text-xs text-amber-800">
               ${report.metaMismatch.map(m => `<li>${escapeHtml(m)}</li>`).join('')}
             </ul>
           </div>
         ` : ''}
         ${report.unmatchedInFile && report.unmatchedInFile.length > 0 ? `
-          <div class="p-2 rounded bg-white/80 border border-rose-200 space-y-1">
+          <div class="p-2.5 rounded-lg bg-white/80 border border-rose-200 space-y-1">
             <div class="font-bold text-rose-800">NISN di File Tidak Ditemukan pada Kelas ${escapeHtml(kObj.kode)} (${report.unmatchedInFile.length} baris):</div>
-            <ul class="list-disc list-inside space-y-0.5 text-[11px] text-rose-700 max-h-36 overflow-y-auto">
+            <ul class="list-disc list-inside space-y-0.5 text-xs text-rose-700 max-h-36 overflow-y-auto">
               ${report.unmatchedInFile.map(item => `<li>Baris ${item.rowNum}: NISN <b>${escapeHtml(item.nisn || '(Kosong)')}</b> — ${escapeHtml(item.nama || '-')} (Nilai: ${escapeHtml(String(item.nilai ?? '-'))})</li>`).join('')}
             </ul>
           </div>
         ` : ''}
         ${report.missingFromFile && report.missingFromFile.length > 0 ? `
-          <div class="p-2 rounded bg-white/80 border border-amber-200 space-y-1">
+          <div class="p-2.5 rounded-lg bg-white/80 border border-amber-200 space-y-1">
             <div class="font-bold text-amber-900">Santri Kelas ${escapeHtml(kObj.kode)} yang Tidak Ada di File Upload (${report.missingFromFile.length} santri):</div>
-            <ul class="list-disc list-inside space-y-0.5 text-[11px] text-amber-800 max-h-36 overflow-y-auto">
+            <ul class="list-disc list-inside space-y-0.5 text-xs text-amber-800 max-h-36 overflow-y-auto">
               ${report.missingFromFile.map(st => `<li>NISN <b>${escapeHtml(st.nisn || '-')}</b> — ${escapeHtml(st.nama || '-')}</li>`).join('')}
             </ul>
           </div>
         ` : ''}
         ${report.duplicateInFile && report.duplicateInFile.length > 0 ? `
-          <div class="p-2 rounded bg-white/80 border border-amber-200 space-y-1">
+          <div class="p-2.5 rounded-lg bg-white/80 border border-amber-200 space-y-1">
             <div class="font-bold text-amber-900">NISN Ganda di Dalam File (${report.duplicateInFile.length}):</div>
-            <div class="text-[11px] text-amber-800">${report.duplicateInFile.map(n => `<code class="px-1 py-0.5 bg-amber-100 rounded">${escapeHtml(n)}</code>`).join(', ')}</div>
+            <div class="text-xs text-amber-800">${report.duplicateInFile.map(n => `<code class="px-1 py-0.5 bg-amber-100 rounded">${escapeHtml(n)}</code>`).join(', ')}</div>
           </div>
         ` : ''}
         ${report.invalidScores && report.invalidScores.length > 0 ? `
-          <div class="p-2 rounded bg-white/80 border border-rose-200 space-y-1">
+          <div class="p-2.5 rounded-lg bg-white/80 border border-rose-200 space-y-1">
             <div class="font-bold text-rose-800">Nilai di Luar Rentang 0–100 (Diabaikan, ${report.invalidScores.length} baris):</div>
             <ul class="list-disc list-inside space-y-0.5 text-xs text-rose-700 max-h-36 overflow-y-auto">
               ${report.invalidScores.map(item => `<li>Baris ${item.rowNum}: <b>${escapeHtml(item.nama)}</b> — Nilai tertulis <b>"${escapeHtml(String(item.nilai))}"</b> (harus angka 0–100 atau kosong)</li>`).join('')}
@@ -3971,7 +4643,7 @@ function renderPenilaian() {
           </div>
         ` : ''}
         ${report.lowScores && report.lowScores.length > 0 ? `
-          <div class="p-2 rounded bg-white/80 border border-amber-300 space-y-1">
+          <div class="p-2.5 rounded-lg bg-white/80 border border-amber-300 space-y-1">
             <div class="font-bold text-amber-900">Catatan: Nilai di Bawah 60 — Kemungkinan Typo (${report.lowScores.length} santri):</div>
             <ul class="list-disc list-inside space-y-0.5 text-xs text-amber-800 max-h-36 overflow-y-auto">
               ${report.lowScores.map(item => `<li>Baris ${item.rowNum}: <b>${escapeHtml(item.nama)}</b> — Nilai <b>${escapeHtml(String(item.nilai))}</b> (tetap dimuat, harap periksa kembali)</li>`).join('')}
@@ -3980,91 +4652,145 @@ function renderPenilaian() {
         ` : ''}
       </div>
     ` : ''}
-    <div class="bg-white rounded border border-[#e7dcc3] shadow-sm overflow-hidden">
-      <table class="w-full text-left border-collapse text-sm">
-        <thead>
-          <tr class="bg-[#fbf8f1] border-b border-[#e7dcc3] font-bold text-[#0f4c3a]">
-            <th class="px-3 py-2.5 text-center w-10">No</th>
-            <th class="px-3 py-2.5">NISN</th>
-            <th class="px-3 py-2.5">Nama Santri (${escapeHtml(kObj.kelas)})</th>
-            <th class="px-3 py-2 text-center">
-              <div>الدرجة (Nilai)</div>
-              ${isLocked ? '' : `
-                <div class="mt-1 flex flex-wrap items-center justify-center gap-1 font-normal">
-                  <input id="default-nilai-input" type="number" min="0" max="100" placeholder="Default"
-                    class="w-16 border border-emerald-400 bg-emerald-50/70 rounded px-1.5 py-0.5 text-center text-xs font-semibold text-emerald-900 placeholder-emerald-600/70 focus:outline-none focus:ring-1 focus:ring-emerald-600 tabular-nums" />
-                  <button type="button" data-kelas="${escapeHtml(kObj.kode)}" onclick="applyDefaultNilai(${sub.id}, ${jamNum}, this.dataset.kelas)" class="px-2 py-0.5 rounded bg-emerald-700 hover:bg-emerald-800 text-white text-[10px] font-semibold">Terapkan</button>
-                  <label class="inline-flex items-center gap-1 text-[10px] text-slate-600 cursor-pointer" title="Jika dicentang, nilai yang sudah ada tidak ditimpa">
-                    <input id="default-nilai-empty-only" type="checkbox" checked class="rounded border-slate-300 text-emerald-700" />
-                    <span>Kosong saja</span>
-                  </label>
-                </div>
-              `}
-            </th>
-            <th class="px-3 py-2.5 text-center">المجموع (Nilai × ${jamNum})</th>
-            <th class="px-3 py-2.5 text-center">تقدير الدرجات</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-[#e7dcc3]">
-          ${classStudents.length === 0 ? `
-            <tr><td colspan="6" class="px-4 py-6 text-center text-slate-400 italic">Belum ada data santri di ${escapeHtml(kObj.kelas)}.</td></tr>
-          ` : classStudents.map((st, i) => {
-            const rawVal = st.scores ? st.scores[sub.id] : undefined;
-            const hasVal = hasScoreValue(rawVal);
-            const numVal = hasVal ? Number(rawVal) : '';
-            const isLow = hasVal && numVal < 60;
-            const isBelowKkm = hasVal && numVal < getActiveKkm();
-            return `
-              <tr class="hover:bg-[#fbf8f1]">
-                <td class="px-3 py-2 text-center">${i + 1}</td>
-                <td class="px-3 py-2 font-mono text-slate-500">${escapeHtml(st.nisn)}</td>
-                <td class="px-3 py-2 font-semibold">${escapeHtml(st.nama)}</td>
-                <td class="px-3 py-2 text-center">
-                  <div class="inline-flex flex-col items-center">
-                    <input id="nilai-cell-${st.id}" type="number" min="0" max="100" placeholder="–" value="${numVal}" ${isLocked ? 'disabled' : ''}
-                      data-kelas="${escapeHtml(kObj.kode)}"
-                      oninput="stScore(${st.id},${sub.id},this.value,${jamNum},this.dataset.kelas)"
-                      class="w-16 border ${isLow ? 'border-amber-500 bg-amber-50 text-amber-900' : 'border-slate-300'} ${isLocked ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''} rounded px-2 py-1 text-center tabular-nums" />
-                    <span id="typo-warn-${st.id}" class="${isLow ? '' : 'hidden'} text-[10px] font-semibold text-amber-700 mt-0.5">⚠ &lt; 60 (Cek typo)</span>
+
+    <!-- DESKTOP GRADING TABLE WITH STICKY HEADER -->
+    <div class="hidden md:block rdp-card overflow-hidden">
+      <div class="max-h-[68vh] overflow-y-auto overflow-x-auto">
+        <table class="w-full text-left border-collapse text-sm rdp-table-sticky">
+          <thead>
+            <tr class="bg-[#fbf8f1] border-b border-[#e7dcc3] font-bold text-[#0f4c3a]">
+              <th class="px-3 py-3 text-center w-12 bg-[#fbf8f1]">No</th>
+              <th class="px-3 py-3 bg-[#fbf8f1]">NISN</th>
+              <th class="px-3 py-3 bg-[#fbf8f1]">Nama Santri (${escapeHtml(kObj.kelas)})</th>
+              <th class="px-3 py-2.5 text-center bg-[#fbf8f1]">
+                <div>الدرجة (Nilai)</div>
+                ${isLocked ? '' : `
+                  <div class="mt-1.5 flex flex-wrap items-center justify-center gap-1.5 font-normal">
+                    <input id="default-nilai-input" type="number" inputmode="decimal" min="0" max="100" placeholder="Default" aria-label="Nilai default kelas"
+                      class="w-20 border border-emerald-400 bg-emerald-50/70 rounded-lg px-2 py-1 text-center text-xs font-semibold text-emerald-900 placeholder-emerald-600/70 tabular-nums" />
+                    <button type="button" data-kelas="${escapeHtml(kObj.kode)}" onclick="applyDefaultNilai(${sub.id}, ${jamNum}, this.dataset.kelas)" class="px-2.5 py-1 rounded-lg bg-[#136048] hover:bg-[#0b3b2e] text-white text-xs font-semibold">Terapkan</button>
+                    <label class="inline-flex items-center gap-1 text-xs text-slate-600 cursor-pointer" title="Jika dicentang, nilai yang sudah ada tidak ditimpa">
+                      <input id="default-nilai-empty-only" type="checkbox" checked class="rounded border-slate-300 text-[#136048]" />
+                      <span>Kosong saja</span>
+                    </label>
                   </div>
-                </td>
-                <td id="jumlah-cell-${st.id}" class="px-3 py-2 text-center font-bold tabular-nums">${hasVal ? numVal * jamNum : '–'}</td>
-                <td id="pred-cell-${st.id}" class="px-3 py-2 text-center arabic-font text-base font-bold${isBelowKkm ? ' text-[#d90000]' : ''}">${hasVal ? escapeHtml(getPredikatArab(numVal)) : '–'}</td>
-              </tr>
-            `;
-          }).join('')}
-        </tbody>
-        ${classStudents.length > 0 ? `
-          <tfoot>
-            <tr class="bg-[#fbf8f1] border-t-2 border-[#e7dcc3]">
-              <td colspan="3" class="px-3 py-2.5 text-right text-slate-500 font-semibold">${isLocked ? 'Nilai sedang dikunci. Batalkan kirim untuk mengubah nilai:' : 'Perubahan sementara tersimpan lokal. Tekan tombol untuk mengirim ke server:'}</td>
-              <td class="px-3 py-2.5 text-center">
-                ${isLocked ? '<span class="text-xs text-slate-400 italic">Terkunci</span>' : `
-                  <button type="button" data-kelas="${escapeHtml(kObj.kode)}" onclick="savePenilaianToServer(${kObj.id}, ${sub.id}, this.dataset.kelas)" class="px-3.5 py-1.5 rounded bg-[#136048] hover:bg-[#0b3b2e] text-white text-xs font-semibold shadow-sm whitespace-nowrap">
-                    Save Nilai
-                  </button>
                 `}
-              </td>
-              <td colspan="2" class="px-3 py-2.5 text-center">
-                <button type="button" data-kelas="${escapeHtml(kObj.kode)}" onclick="toggleAssignmentSent(${kObj.id}, ${sub.id}, this.dataset.kelas)" class="px-3.5 py-1.5 rounded ${isLocked ? 'bg-amber-600 hover:bg-amber-700' : 'bg-[#84670f] hover:bg-[#6d540b]'} text-white text-xs font-semibold shadow-sm whitespace-nowrap">
-                  ${isLocked ? 'Batalkan Kirim' : 'Kirim Nilai'}
-                </button>
-              </td>
+              </th>
+              <th class="px-3 py-3 text-center bg-[#fbf8f1]">المجموع (Nilai × ${jamNum})</th>
+              <th class="px-3 py-3 text-center bg-[#fbf8f1]">تقدير الدرجات</th>
             </tr>
-          </tfoot>
-        ` : ''}
-      </table>
+          </thead>
+          <tbody class="divide-y divide-[#e7dcc3]">
+            ${classStudents.length === 0 ? `
+              <tr><td colspan="6" class="px-4 py-8 text-center text-slate-500 italic">Belum ada data santri di ${escapeHtml(kObj.kelas)}.</td></tr>
+            ` : classStudents.map((st, i) => {
+              const rawVal = st.scores ? st.scores[sub.id] : undefined;
+              const hasVal = hasScoreValue(rawVal);
+              const numVal = hasVal ? Number(rawVal) : '';
+              const isLow = hasVal && numVal < 60;
+              const isBelowKkm = hasVal && numVal < activeKkm;
+              return `
+                <tr class="hover:bg-[#fbf8f1]/80 transition-colors">
+                  <td class="px-3 py-2.5 text-center text-slate-600 tabular-nums">${i + 1}</td>
+                  <td class="px-3 py-2.5 font-mono text-xs text-slate-600">${escapeHtml(st.nisn)}</td>
+                  <td class="px-3 py-2.5 font-semibold text-slate-900">${escapeHtml(st.nama)}</td>
+                  <td class="px-3 py-2 text-center">
+                    <div class="inline-flex flex-col items-center">
+                      <input id="nilai-cell-${st.id}" data-row-idx="${i}" type="number" inputmode="decimal" min="0" max="100" placeholder="–" value="${numVal}" ${isLocked ? 'disabled' : ''}
+                        aria-label="Nilai ${escapeHtml(st.nama)}"
+                        data-kelas="${escapeHtml(kObj.kode)}"
+                        onkeydown="handleNilaiKeydown(event, ${i}, 'row')"
+                        oninput="stScore(${st.id},${sub.id},this.value,${jamNum},this.dataset.kelas,'nilai-cell-${st.id}')"
+                        class="w-20 border ${isLow ? 'border-amber-500 bg-amber-50 text-amber-900' : 'border-slate-300 bg-white'} ${isLocked ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''} rounded-lg px-2 py-1.5 text-center text-sm font-semibold tabular-nums" />
+                      <span id="typo-warn-${st.id}" class="${isLow ? '' : 'hidden'} text-xs font-semibold text-amber-700 mt-0.5">⚠ &lt; 60 (Cek typo)</span>
+                    </div>
+                  </td>
+                  <td id="jumlah-cell-${st.id}" class="px-3 py-2.5 text-center font-bold tabular-nums">${hasVal ? numVal * jamNum : '–'}</td>
+                  <td class="px-3 py-2.5 text-center">
+                    <div class="inline-flex items-center justify-center gap-1.5 flex-wrap">
+                      <span id="pred-cell-${st.id}" class="arabic-font text-base font-bold${isBelowKkm ? ' text-[#d90000]' : ''}">${hasVal ? escapeHtml(getPredikatArab(numVal)) : '–'}</span>
+                      <span id="kkm-badge-${st.id}" class="${isBelowKkm ? '' : 'hidden '}px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-200 text-xs font-semibold whitespace-nowrap">&lt; KKM</span>
+                    </div>
+                  </td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+          ${classStudents.length > 0 ? `
+            <tfoot>
+              <tr class="bg-[#fbf8f1] border-t-2 border-[#e7dcc3]">
+                <td colspan="3" class="px-3 py-3 text-right text-xs text-slate-600 font-semibold">${isLocked ? 'Nilai sedang dikunci. Batalkan kirim untuk mengubah nilai:' : 'Perubahan sementara tersimpan lokal. Klik tombol untuk menyimpan ke server:'}</td>
+                <td class="px-3 py-3 text-center">
+                  ${isLocked ? '<span class="text-xs text-slate-400 italic">Terkunci</span>' : `
+                    <button id="btn-save-nilai-foot" type="button" data-kelas="${escapeHtml(kObj.kode)}" onclick="savePenilaianToServer(${kObj.id}, ${sub.id}, this.dataset.kelas)" class="px-3.5 py-2 rounded-lg border-2 border-[#136048] bg-white hover:bg-[#f0f7f4] text-[#0f4c3a] text-xs font-bold whitespace-nowrap transition">
+                      Save Nilai
+                    </button>
+                  `}
+                </td>
+                <td colspan="2" class="px-3 py-3 text-center">
+                  <button id="btn-send-nilai-foot" type="button" data-kelas="${escapeHtml(kObj.kode)}" onclick="toggleAssignmentSent(${kObj.id}, ${sub.id}, this.dataset.kelas)" class="px-4 py-2 rounded-lg ${isLocked ? 'bg-amber-600 hover:bg-amber-700 text-white' : 'bg-[#0f4c3a] hover:bg-[#0b3b2e] text-[#f3e3b0] border-b-2 border-[#c9a227]'} text-xs font-bold shadow-sm whitespace-nowrap transition">
+                    ${isLocked ? 'Batalkan Kirim' : 'Kirim Nilai'}
+                  </button>
+                </td>
+              </tr>
+            </tfoot>
+          ` : ''}
+        </table>
+      </div>
+    </div>
+
+    <!-- MOBILE TOUCH-FRIENDLY GRADING CARDS (< 768px) -->
+    <div class="md:hidden space-y-2.5 penilaian-mobile-cards">
+      ${classStudents.length === 0 ? `
+        <div class="rdp-card p-6 text-center text-sm text-slate-500 italic">Belum ada data santri di ${escapeHtml(kObj.kelas)}.</div>
+      ` : classStudents.map((st, i) => {
+        const rawVal = st.scores ? st.scores[sub.id] : undefined;
+        const hasVal = hasScoreValue(rawVal);
+        const numVal = hasVal ? Number(rawVal) : '';
+        const isLow = hasVal && numVal < 60;
+        const isBelowKkm = hasVal && numVal < activeKkm;
+        return `
+          <div class="rdp-card p-3.5 space-y-2">
+            <div class="flex items-center justify-between gap-3">
+              <div class="min-w-0">
+                <div class="flex items-center gap-2">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-[#fbf8f1] border border-[#e7dcc3] text-xs font-bold text-[#0f4c3a] tabular-nums flex-shrink-0">${i + 1}</span>
+                  <div class="font-bold text-sm text-slate-900 truncate">${escapeHtml(st.nama)}</div>
+                </div>
+                <div class="text-xs font-mono text-slate-500 mt-0.5 pl-8">NISN: ${escapeHtml(st.nisn)}</div>
+              </div>
+              <div class="flex-shrink-0">
+                <input id="nilai-mob-${st.id}" data-mob-row-idx="${i}" type="number" inputmode="decimal" min="0" max="100" placeholder="–" value="${numVal}" ${isLocked ? 'disabled' : ''}
+                  aria-label="Nilai ${escapeHtml(st.nama)}"
+                  data-kelas="${escapeHtml(kObj.kode)}"
+                  onkeydown="handleNilaiKeydown(event, ${i}, 'mob')"
+                  oninput="stScore(${st.id},${sub.id},this.value,${jamNum},this.dataset.kelas,'nilai-mob-${st.id}')"
+                  class="w-20 h-11 border ${isLow ? 'border-amber-500 bg-amber-50 text-amber-900' : 'border-slate-300 bg-white'} ${isLocked ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''} rounded-lg px-2 py-1.5 text-center text-base font-bold tabular-nums" />
+              </div>
+            </div>
+            <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[#e7dcc3]/70 text-xs">
+              <span class="text-slate-600">Jumlah: <b id="jumlah-mob-${st.id}" class="tabular-nums text-[#0f4c3a]">${hasVal ? numVal * jamNum : '–'}</b></span>
+              <div class="inline-flex items-center gap-1.5">
+                <span class="text-slate-600">Predikat:</span>
+                <span id="pred-mob-${st.id}" class="arabic-font text-base font-bold${isBelowKkm ? ' text-[#d90000]' : ''}">${hasVal ? escapeHtml(getPredikatArab(numVal)) : '–'}</span>
+                <span id="kkm-badge-mob-${st.id}" class="${isBelowKkm ? '' : 'hidden '}px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-200 text-xs font-semibold">&lt; KKM</span>
+              </div>
+            </div>
+            <div id="typo-warn-mob-${st.id}" class="${isLow ? '' : 'hidden '}text-xs font-semibold text-amber-700">⚠ Nilai di bawah 60 — cek kemungkinan typo</div>
+          </div>
+        `;
+      }).join('')}
     </div>
   `;
 }
 
-function applyDefaultNilai(subId, jam, kelasKode) {
+async function applyDefaultNilai(subId, jam, kelasKode) {
   if (!kelasKode) return;
   const defInp = document.getElementById('default-nilai-input');
   const rawVal = defInp ? defInp.value.trim() : '';
-  if (rawVal === '') { showToast('Isi angka nilai default terlebih dahulu'); return; }
+  if (rawVal === '') { showToast('Isi angka nilai default terlebih dahulu', 'warning'); return; }
   const parsed = Number(rawVal);
-  if (!Number.isFinite(parsed)) { showToast('Nilai default harus berupa angka'); return; }
+  if (!Number.isFinite(parsed)) { showToast('Nilai default harus berupa angka', 'error'); return; }
   const val = Math.min(100, Math.max(0, Math.round(parsed)));
   if (defInp) defInp.value = val;
   const emptyOnly = Boolean(document.getElementById('default-nilai-empty-only')?.checked);
@@ -4077,48 +4803,36 @@ function applyDefaultNilai(subId, jam, kelasKode) {
   const msg = emptyOnly
     ? `Isi nilai ${val} ke ${affected.length} santri yang masih kosong di Kelas ${kelasKode}?`
     : `TIMPA seluruh nilai (${affected.length} santri) di Kelas ${kelasKode} dengan angka ${val}?`;
-  if (!confirm(msg)) return;
+  const confirmed = await openConfirmModal({
+    title: emptyOnly ? 'Terapkan Nilai Default' : 'Timpa Seluruh Nilai',
+    message: msg,
+    confirmText: emptyOnly ? 'Terapkan Nilai' : 'Ya, Timpa Semua',
+    variant: emptyOnly ? 'primary' : 'warning'
+  });
+  if (!confirmed) return;
   const isLow = val < 60;
   const jamNum = Number(jam) || 0;
   affected.forEach(st => {
     if (!st.scores) st.scores = {};
     st.scores[subId] = val;
-    const inp = document.getElementById(`nilai-cell-${st.id}`);
-    const jum = document.getElementById(`jumlah-cell-${st.id}`);
-    const prd = document.getElementById(`pred-cell-${st.id}`);
-    const wrn = document.getElementById(`typo-warn-${st.id}`);
-    if (inp) {
-      inp.value = val;
-      inp.className = `w-16 border ${isLow ? 'border-amber-500 bg-amber-50 text-amber-900' : 'border-slate-300'} rounded px-2 py-1 text-center tabular-nums`;
-    }
-    if (jum) jum.textContent = val * jamNum;
-    if (prd) {
-      prd.textContent = getPredikatArab(val);
-      prd.classList.toggle('text-[#d90000]', val < getActiveKkm());
-    }
-    if (wrn) wrn.classList.toggle('hidden', !isLow);
+    syncPenilaianCellUi(st.id, val, jamNum);
   });
+  updatePenilaianFilledCount(kelasKode, subId);
   saveLocalScoreDraft(kelasKode, subId);
   showToast(isLow
     ? `Default ${val} (< 60, cek typo) diterapkan ke ${affected.length} santri — klik Save Nilai atau Kirim Nilai`
     : `Default ${val} diterapkan ke ${affected.length} santri — klik Save Nilai atau Kirim Nilai`);
 }
 
-function stScore(studentId, subId, val, jam, kelasKode) {
+function stScore(studentId, subId, val, jam, kelasKode, sourceId = null) {
   const s = state.students.find(x => x.id === studentId);
   if (!s) return;
   if (!s.scores) s.scores = {};
-  const inp = document.getElementById(`nilai-cell-${studentId}`);
-  const jum = document.getElementById(`jumlah-cell-${studentId}`);
-  const prd = document.getElementById(`pred-cell-${studentId}`);
-  const wrn = document.getElementById(`typo-warn-${studentId}`);
 
   if (val === '' || val === null || val === undefined || String(val).trim() === '') {
     delete s.scores[subId];
-    if (inp) inp.className = 'w-16 border border-slate-300 rounded px-2 py-1 text-center tabular-nums';
-    if (jum) jum.textContent = '–';
-    if (prd) { prd.textContent = '–'; prd.classList.remove('text-[#d90000]'); }
-    if (wrn) wrn.classList.add('hidden');
+    syncPenilaianCellUi(studentId, '', Number(jam) || 0, sourceId);
+    updatePenilaianFilledCount(kelasKode || s.kelas, subId);
     saveLocalScoreDraft(kelasKode || s.kelas, subId);
     return;
   }
@@ -4126,19 +4840,10 @@ function stScore(studentId, subId, val, jam, kelasKode) {
   const parsedRaw = Number(val);
   if (!Number.isFinite(parsedRaw)) return;
   const num = Math.min(100, Math.max(0, Math.round(parsedRaw)));
-  const isLow = num < 60;
   const jamNum = Number(jam) || 0;
   s.scores[subId] = num;
-  if (inp) {
-    if (parsedRaw > 100 || parsedRaw < 0) inp.value = num;
-    inp.className = `w-16 border ${isLow ? 'border-amber-500 bg-amber-50 text-amber-900' : 'border-slate-300'} rounded px-2 py-1 text-center tabular-nums`;
-  }
-  if (jum) jum.textContent = num * jamNum;
-  if (prd) {
-    prd.textContent = getPredikatArab(num);
-    prd.classList.toggle('text-[#d90000]', num < getActiveKkm());
-  }
-  if (wrn) wrn.classList.toggle('hidden', !isLow);
+  syncPenilaianCellUi(studentId, num, jamNum, sourceId);
+  updatePenilaianFilledCount(kelasKode || s.kelas, subId);
   saveLocalScoreDraft(kelasKode || s.kelas, subId);
 }
 
@@ -4518,7 +5223,13 @@ function handleNilaiUpload(event, assignId, subId, jam, kelasKode) {
         }
         if (duplicateInFile.length > 0) lines.push(`• NISN ganda di file: ${duplicateInFile.join(', ')}`);
         lines.push('', 'Tetap lanjutkan memuat nilai yang cocok dari file ini?');
-        if (!confirm(lines.join('\n'))) {
+        const keepLoading = await openConfirmModal({
+          title: 'Konfirmasi Hasil Validasi File',
+          message: lines.join('\n'),
+          confirmText: 'Tetap Muat Nilai',
+          variant: 'warning'
+        });
+        if (!keepLoading) {
           state.nilaiUploadReport.summaryText += ' (Upload dibatalkan oleh guru).';
           renderPage();
           showToast('Upload nilai dibatalkan');
@@ -4535,7 +5246,12 @@ function handleNilaiUpload(event, assignId, subId, jam, kelasKode) {
       });
 
       if (hasExistingScores) {
-        const ok = confirm('Nilai sudah ada, apakah akan menimpa dengan nilai baru dari file ini?');
+        const ok = await openConfirmModal({
+          title: 'Timpa Nilai yang Sudah Ada?',
+          message: 'Sebagian santri di kelas ini sudah memiliki nilai. Apakah Anda yakin ingin menimpa dengan nilai baru dari file ini?',
+          confirmText: 'Ya, Timpa Nilai',
+          variant: 'warning'
+        });
         if (!ok) {
           state.nilaiUploadReport.summaryText += ' (Upload nilai baru dibatalkan oleh guru).';
           renderPage();
@@ -4627,13 +5343,19 @@ async function openRaporInNewTab(studentsList, autoPrint = false) {
     return;
   }
   const incompleteStudents = studentsList.filter(st => getMissingScoresForStudent(st).length > 0);
+  let win = null;
   if (incompleteStudents.length > 0) {
-    const ok = confirm(
-      `Peringatan: ${incompleteStudents.length} dari ${studentsList.length} santri masih memiliki nilai kosong (belum lengkap).\n\nNilai kosong akan ditampilkan sebagai "–". Tetap lanjutkan ${autoPrint ? 'mencetak' : 'membuka pratinjau'} rapor?`
-    );
+    const ok = await openConfirmModal({
+      title: 'Nilai Santri Belum Lengkap',
+      message: `Peringatan: ${incompleteStudents.length} dari ${studentsList.length} santri masih memiliki nilai kosong (belum lengkap).\n\nNilai kosong akan ditampilkan sebagai "–". Tetap lanjutkan ${autoPrint ? 'mencetak' : 'membuka pratinjau'} rapor?`,
+      confirmText: autoPrint ? 'Tetap Cetak' : 'Buka Pratinjau',
+      variant: 'warning',
+      onConfirmSync: () => { win = window.open('', '_blank'); }
+    });
     if (!ok) return;
+  } else {
+    win = window.open('', '_blank');
   }
-  const win = window.open('', '_blank');
   if (!win) {
     showToast('Pop-up diblokir browser. Izinkan pop-up untuk membuka tab pratinjau rapor.');
     return;
@@ -4678,7 +5400,7 @@ async function openRaporInNewTab(studentsList, autoPrint = false) {
   <title>${escapeHtml(titleText)}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Noto+Naskh+Arabic:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Noto+Naskh+Arabic:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <script src="${twSrc}" onerror="var s=document.createElement('script');s.src='https://cdn.tailwindcss.com';document.head.appendChild(s);"><\/script>
   <style>
     @page {
@@ -5134,7 +5856,7 @@ async function openCetakRankingTab(autoPrint = false) {
   <title>${escapeHtml(safeDocTitle)}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Noto+Naskh+Arabic:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Noto+Naskh+Arabic:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <script src="${twSrc}" onerror="var s=document.createElement('script');s.src='https://cdn.tailwindcss.com';document.head.appendChild(s);"><\/script>
   <style>
     @page {
@@ -5217,6 +5939,62 @@ async function openCetakRankingTab(autoPrint = false) {
     }
     .tabular-nums { font-variant-numeric: tabular-nums; }
     .arabic-font { font-family: "Amiri", "Noto Naskh Arabic", "Traditional Arabic", "Scheherazade New", serif; }
+
+    /* ============ DESIGN SYSTEM TOKENS & AKSESIBILITAS ============ */
+    :root {
+      --rdp-bg-canvas: #f7f3ea;
+      --rdp-bg-surface: #ffffff;
+      --rdp-bg-subtle: #fbf8f1;
+      --rdp-border: #e7dcc3;
+      --rdp-primary: #0f4c3a;
+      --rdp-primary-hover: #0b3b2e;
+      --rdp-primary-mid: #136048;
+      --rdp-accent: #c9a227;
+      --rdp-accent-dark: #a07d18;
+      --rdp-text: #0f4c3a;
+      --rdp-text-muted: #52635c;
+      --rdp-radius-card: 0.75rem;
+      --rdp-radius-control: 0.5rem;
+    }
+    body {
+      font-family: "Plus Jakarta Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    @media screen {
+      button:focus-visible,
+      a:focus-visible,
+      input:focus-visible,
+      select:focus-visible,
+      textarea:focus-visible,
+      [tabindex]:focus-visible {
+        outline: 2px solid var(--rdp-accent);
+        outline-offset: 2px;
+      }
+    }
+    .rdp-card {
+      background: var(--rdp-bg-surface);
+      border: 1px solid var(--rdp-border);
+      border-radius: var(--rdp-radius-card);
+      box-shadow: 0 1px 2px rgba(15, 76, 58, 0.05);
+    }
+    @keyframes rdpShimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+    .rdp-skeleton {
+      background: linear-gradient(90deg, #efe7d6 25%, #f9f5eb 50%, #efe7d6 75%);
+      background-size: 200% 100%;
+      animation: rdpShimmer 1.4s ease-in-out infinite;
+    }
+    .rdp-btn-busy {
+      opacity: 0.72 !important;
+      cursor: wait !important;
+    }
+    .rdp-table-sticky thead th {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      box-shadow: inset 0 -1px 0 var(--rdp-border);
+    }
     /* Samakan lebar konten layar dengan area cetak A4 (210mm - margin 2 x 15mm = 180mm) agar pengukuran auto 1 halaman akurat */
     @media screen {
       #ranking-sheet {
@@ -6257,7 +7035,7 @@ function openLampiranSkKejuaraanTab(autoPrint = false) {
   <title>Lampiran_SK_Kejuaraan_${escapeHtml(m.tahun.replace('/', '_'))}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Noto+Naskh+Arabic:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Noto+Naskh+Arabic:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <script src="${twSrc}" onerror="var s=document.createElement('script');s.src='https://cdn.tailwindcss.com';document.head.appendChild(s);"><\/script>
   <style>
     @page {
@@ -6893,15 +7671,30 @@ async function createUserAccount(e) {
 }
 
 async function resetUserPassword(uid, uname) {
-  const pw = prompt(`Masukkan password baru untuk ${uname} (minimal 6 karakter):`);
+  const pw = await openInputModal({
+    title: 'Reset Password Akun',
+    message: `Masukkan password baru untuk akun "${uname}".`,
+    label: 'Password Baru (minimal 6 karakter)',
+    placeholder: 'Minimal 6 karakter',
+    inputType: 'password',
+    confirmText: 'Simpan Password',
+    validate: (val) => (!val || val.trim().length < 6)
+      ? 'Password baru minimal 6 karakter.'
+      : null
+  });
   if (!pw) return;
-  if (pw.trim().length < 6) { showToast('Password baru minimal 6 karakter'); return; }
   const res = await apiCall('PUT', `/api/users/${uid}/password`, { password: pw });
   if (res && res.ok) showToast(`Password ${uname} diperbarui`);
 }
 
 async function deleteUserAccount(uid) {
-  if (!confirm('Hapus akun pengguna ini secara permanen?')) return;
+  const ok = await openConfirmModal({
+    title: 'Hapus Akun Pengguna',
+    message: 'Hapus akun pengguna ini secara permanen? Tindakan ini tidak dapat dibatalkan.',
+    confirmText: 'Hapus Permanen',
+    variant: 'danger'
+  });
+  if (!ok) return;
   const res = await apiCall('DELETE', `/api/users/${uid}`);
   if (res && res.ok) {
     showToast('Akun dihapus');
@@ -7329,6 +8122,32 @@ async function loadDbState() {
 }
 
 document.addEventListener('keydown', (ev) => {
+  if (_rdpModalState) {
+    if (ev.key === 'Escape') {
+      ev.preventDefault();
+      closeRdpModal(null);
+      return;
+    }
+    if (ev.key === 'Tab') {
+      const overlay = document.getElementById('rdp-modal-overlay');
+      if (overlay && !overlay.classList.contains('hidden')) {
+        const focusables = Array.from(overlay.querySelectorAll('button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])'))
+          .filter(el => el.offsetParent !== null);
+        if (focusables.length > 0) {
+          const first = focusables[0];
+          const last = focusables[focusables.length - 1];
+          if (ev.shiftKey && document.activeElement === first) {
+            ev.preventDefault();
+            last.focus();
+          } else if (!ev.shiftKey && document.activeElement === last) {
+            ev.preventDefault();
+            first.focus();
+          }
+        }
+      }
+      return;
+    }
+  }
   if (ev.key !== 'Escape') return;
   if (state.sidebarOpenMobile) {
     closeMobileSidebar();
@@ -7338,7 +8157,7 @@ document.addEventListener('keydown', (ev) => {
   if (addTeacherForm && !addTeacherForm.classList.contains('hidden')) {
     addTeacherForm.classList.add('hidden');
   }
-  document.querySelectorAll('[role="dialog"]:not(#login-screen):not(.hidden)').forEach((dlg) => {
+  document.querySelectorAll('[role="dialog"]:not(#login-screen):not(#rdp-modal-overlay):not(.hidden)').forEach((dlg) => {
     dlg.classList.add('hidden');
   });
 });
@@ -7363,6 +8182,26 @@ window.addEventListener('unhandledrejection', (ev) => {
   notifyGlobalClientError(ev ? ev.reason : 'Unhandled rejection');
 });
 
+function renderLoadingSkeleton() {
+  const el = document.getElementById('main-content');
+  if (!el) return;
+  el.innerHTML = `
+    <div role="status" aria-busy="true" aria-label="Memuat data aplikasi" class="space-y-5">
+      <div class="h-8 w-56 rounded-lg rdp-skeleton"></div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="h-24 rounded-xl border border-[#e7dcc3] rdp-skeleton"></div>
+        <div class="h-24 rounded-xl border border-[#e7dcc3] rdp-skeleton"></div>
+        <div class="h-24 rounded-xl border border-[#e7dcc3] rdp-skeleton"></div>
+        <div class="h-24 rounded-xl border border-[#e7dcc3] rdp-skeleton"></div>
+      </div>
+      <div class="grid grid-cols-1 lg:grid-cols-[8fr_5fr] gap-5">
+        <div class="h-64 rounded-xl border border-[#e7dcc3] rdp-skeleton"></div>
+        <div class="h-64 rounded-xl border border-[#e7dcc3] rdp-skeleton"></div>
+      </div>
+    </div>
+  `;
+}
+
 async function initApp() {
   if (location.protocol === 'file:') {
     renderModeButtons();
@@ -7370,6 +8209,7 @@ async function initApp() {
     renderPage();
     return;
   }
+  renderLoadingSkeleton();
   const me = await apiCall('GET', '/api/me');
   if (me && me.authenticated) {
     applyAuthRole(me.user);

@@ -7,7 +7,8 @@ const SECURITY_HEADERS = {
   'X-Content-Type-Options': 'nosniff',
   'X-Frame-Options': 'DENY',
   'Referrer-Policy': 'same-origin',
-  'Permissions-Policy': 'camera=(), microphone=(), geolocation=()'
+  'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+  'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdn.sheetjs.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
 };
 
 const WIB_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
@@ -37,6 +38,15 @@ async function logActivity(db, userLike, activityText) {
       .bind(actor, level, cleanActivity, formatWibTimestamp())
       .run();
   } catch (_) { /* fail-safe: jangan gagalkan request utama */ }
+}
+
+function scheduleActivityLog(ctx, db, userLike, activityText) {
+  const p = logActivity(db, userLike, activityText);
+  if (ctx && typeof ctx.waitUntil === 'function') {
+    ctx.waitUntil(p);
+    return;
+  }
+  return p;
 }
 
 // Rate limiting dual-bucket untuk POST /api/login & PUT /api/me/password
@@ -890,7 +900,7 @@ async function buildScopedStateForUser(env, user, opts = {}) {
   return full;
 }
 
-async function handleRequest(request, env) {
+async function handleRequest(request, env, ctx) {
   const method = request.method || 'GET';
   let pathname = '/';
 
@@ -965,7 +975,7 @@ async function handleRequest(request, env) {
     // Public branding
     if (method === 'GET' && pathname === '/api/public/branding') {
       const p = (await env.DB.prepare('SELECT nama, namaArab, logoDataUrl, tahun, semester, adminWhatsapp FROM pesantren_profile WHERE id = 1').first()) || {};
-      return jsonResponse(200, p, { 'Cache-Control': 'public, max-age=60, stale-while-revalidate=300' });
+      return jsonResponse(200, p, { 'Cache-Control': 'no-store' });
     }
 
       // Auth: Login
@@ -1023,7 +1033,7 @@ async function handleRequest(request, env) {
           teacherId: userRow.teacherId,
           studentId: userRow.studentId
         };
-        await logActivity(env.DB, user, 'Login ke aplikasi RDP');
+        scheduleActivityLog(ctx, env.DB, user, 'Login ke aplikasi RDP');
         return jsonResponse(200, { ok: true, user }, {
           'Set-Cookie': buildSessionCookie(request, token, SESSION_TTL_SEC)
         });
@@ -2173,7 +2183,7 @@ async function handleRequest(request, env) {
 
         await runEntityBatches(env.DB, groups, 900);
         if (!isBulk && list.length === 1 && lastStId) {
-          await logActivity(env.DB, actorUser, `Menambahkan santri ${String(list[0].nama || '').trim()} ke Kelas ${String(list[0].kelas || '').trim()} (${activeTahun} ${activeSemester})`);
+          scheduleActivityLog(ctx, env.DB, actorUser, `Menambahkan santri ${String(list[0].nama || '').trim()} ke Kelas ${String(list[0].kelas || '').trim()} (${activeTahun} ${activeSemester})`);
         }
         return jsonResponse(201, { ok: true, id: lastStId, count: added + updated, added, updated });
       }
@@ -2221,7 +2231,7 @@ async function handleRequest(request, env) {
             .bind(targetKelas, stId, activeTahun, activeSemester),
           env.DB.prepare('UPDATE students SET kelas = ? WHERE id = ?').bind(targetKelas, stId)
         ]);
-        await logActivity(env.DB, actorUser, `Memindahkan santri ${enrRow.nama} dari Kelas ${enrRow.kelas} ke ${targetKelas} (${activeTahun} ${activeSemester})`);
+        scheduleActivityLog(ctx, env.DB, actorUser, `Memindahkan santri ${enrRow.nama} dari Kelas ${enrRow.kelas} ke ${targetKelas} (${activeTahun} ${activeSemester})`);
         return jsonResponse(200, { ok: true, studentId: stId, fromKelas: enrRow.kelas, toKelas: targetKelas });
       }
 
@@ -2259,7 +2269,8 @@ async function handleRequest(request, env) {
           SET status = ?, mutasiCatatan = ?, mutasiTanggal = ?
           WHERE studentId = ? AND tahun = ? AND semester = ?
         `).bind(nextStatus, mutasiCatatan, mutasiTanggal, stId, activeTahun, activeSemester).run();
-        await logActivity(
+        scheduleActivityLog(
+          ctx,
           env.DB,
           actorUser,
           nextStatus === 'mutasi_keluar'
@@ -2400,7 +2411,8 @@ async function handleRequest(request, env) {
         const subRow = await env.DB.prepare('SELECT namaId FROM subjects WHERE namaArab = ? LIMIT 1').bind(row.mapel).first().catch(() => null);
         const mapelLabel = (subRow && subRow.namaId) ? subRow.namaId : row.mapel;
         const kelasLabel = row.kelas || ('Kelas ' + row.kode);
-        await logActivity(
+        scheduleActivityLog(
+          ctx,
           env.DB,
           user,
           sent ? `Mengirim & mengunci nilai ${mapelLabel} ${kelasLabel}` : `Membuka kembali draf nilai ${mapelLabel} ${kelasLabel}`
@@ -2524,7 +2536,7 @@ async function handleRequest(request, env) {
             const [kls, lbl] = [...savedPairs][0].split('||');
             actMsg = `Menyimpan nilai ${lbl} Kelas ${kls} (${list.length} santri)`;
           }
-          await logActivity(env.DB, user, actMsg);
+          scheduleActivityLog(ctx, env.DB, user, actMsg);
         }
         return jsonResponse(200, { ok: true });
       }
@@ -2558,8 +2570,8 @@ async function handleRequest(request, env) {
 }
 
 export default {
-  async fetch(request, env) {
-    const resp = await handleRequest(request, env);
+  async fetch(request, env, ctx) {
+    const resp = await handleRequest(request, env, ctx);
     if (isHttpsRequest(request) && !resp.headers.has('Strict-Transport-Security')) {
       const h = new Headers(resp.headers);
       h.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');

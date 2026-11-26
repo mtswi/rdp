@@ -29,7 +29,8 @@ const SECURITY_HEADERS = {
   'X-Content-Type-Options': 'nosniff',
   'X-Frame-Options': 'DENY',
   'Referrer-Policy': 'same-origin',
-  'Permissions-Policy': 'camera=(), microphone=(), geolocation=()'
+  'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+  'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdn.sheetjs.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
 };
 
 const WIB_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
@@ -751,7 +752,7 @@ const server = http.createServer(async (req, res) => {
     // Public branding (for login screen, no auth required)
     if (method === 'GET' && pathname === '/api/public/branding') {
       const p = db.prepare('SELECT nama, namaArab, logoDataUrl, tahun, semester, adminWhatsapp FROM pesantren_profile WHERE id = 1').get() || {};
-      return sendJson(res, 200, p, { 'Cache-Control': 'public, max-age=60, stale-while-revalidate=300' });
+      return sendJson(res, 200, p, { 'Cache-Control': 'no-store' });
     }
 
     // Auth: Login (with dual-bucket rate limiting, async scrypt & active teacher check)

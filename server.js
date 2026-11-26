@@ -4,7 +4,7 @@ const os = require('node:os');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { DatabaseSync } = require('node:sqlite');
-const { db, DB_PATH, getFullState, buildDefaultPredikatConfig, parseAndValidatePredikatConfig, hashPassword, hashPasswordAsync, verifyPassword, verifyPasswordAsync, runInTransaction } = require('./db');
+const { db, DB_PATH, getFullState, carryOverEnrollmentsToGenap, buildDefaultPredikatConfig, parseAndValidatePredikatConfig, hashPassword, hashPasswordAsync, verifyPassword, verifyPasswordAsync, runInTransaction } = require('./db');
 
 const HOST = process.env.HOST || '0.0.0.0';
 const PORT = Number(process.env.PORT) || 3000;
@@ -675,10 +675,81 @@ const server = http.createServer(async (req, res) => {
       const full = getFullState({ omitMedia });
       if (user.role === 'siswa') {
         const hasStudentId = user.studentId !== null && user.studentId !== undefined && user.studentId !== '' && Number.isFinite(Number(user.studentId));
-        const myStudent = hasStudentId
-          ? full.students.find(s => s.id === Number(user.studentId))
-          : null;
-        const classPool = myStudent ? full.students.filter(s => s.kelas === myStudent.kelas) : [];
+        const sidNum = hasStudentId ? Number(user.studentId) : null;
+        let myStudent = sidNum ? full.students.find(s => s.id === sidNum) : null;
+        let targetTahun = full.pesantren.tahun;
+        let targetSemester = full.pesantren.semester;
+        let classPool = [];
+        let targetSubjects = full.subjects;
+        let targetAssignments = full.assignments;
+        let myClass = null;
+        let archiveNotice = null;
+
+        if (myStudent) {
+          classPool = full.students.filter(s => s.kelas === myStudent.kelas);
+          myClass = full.classes.find(c => c.kode === myStudent.kelas) || null;
+        } else if (sidNum) {
+          const curEnr = db.prepare(`
+            SELECT kelas, COALESCE(status, 'aktif') AS status, COALESCE(mutasiCatatan, '') AS mutasiCatatan, COALESCE(mutasiTanggal, '') AS mutasiTanggal
+            FROM student_enrollments WHERE studentId = ? AND tahun = ? AND semester = ?
+          `).get(sidNum, full.pesantren.tahun, full.pesantren.semester);
+          const archEnr = db.prepare(`
+            SELECT tahun, semester, kelas
+            FROM student_enrollments
+            WHERE studentId = ? AND COALESCE(status, 'aktif') = 'aktif'
+            ORDER BY tahun DESC, CASE WHEN semester = 'Genap' THEN 2 ELSE 1 END DESC
+            LIMIT 1
+          `).get(sidNum);
+          if (archEnr) {
+            targetTahun = archEnr.tahun;
+            targetSemester = archEnr.semester;
+            const archRawStudents = db.prepare(`
+              SELECT s.*, e.kelas AS enrKelas
+              FROM student_enrollments e
+              JOIN students s ON s.id = e.studentId
+              WHERE e.tahun = ? AND e.semester = ? AND e.kelas = ? AND COALESCE(e.status, 'aktif') = 'aktif'
+              ORDER BY s.id ASC
+            `).all(targetTahun, targetSemester, archEnr.kelas);
+            const archScores = db.prepare(`
+              SELECT sc.studentId, sc.subjectId, sc.score
+              FROM scores sc
+              JOIN student_enrollments e ON e.studentId = sc.studentId AND e.tahun = sc.tahun AND e.semester = sc.semester
+              WHERE sc.tahun = ? AND sc.semester = ? AND e.kelas = ? AND COALESCE(e.status, 'aktif') = 'aktif'
+            `).all(targetTahun, targetSemester, archEnr.kelas);
+            const archAtt = db.prepare('SELECT sakit, izin, alpa FROM student_attendance WHERE studentId = ? AND tahun = ? AND semester = ?')
+              .get(sidNum, targetTahun, targetSemester);
+            const archScoreMap = new Map();
+            for (const row of archScores) {
+              if (!archScoreMap.has(row.studentId)) archScoreMap.set(row.studentId, {});
+              archScoreMap.get(row.studentId)[row.subjectId] = row.score;
+            }
+            classPool = archRawStudents.map(st => {
+              const { enrKelas, ...rest } = st;
+              return {
+                ...rest,
+                kelas: enrKelas,
+                sakit: st.id === sidNum && archAtt ? (archAtt.sakit ?? 0) : 0,
+                izin: st.id === sidNum && archAtt ? (archAtt.izin ?? 0) : 0,
+                alpa: st.id === sidNum && archAtt ? (archAtt.alpa ?? 0) : 0,
+                scores: archScoreMap.get(st.id) || {}
+              };
+            });
+            myStudent = classPool.find(s => s.id === sidNum) || null;
+            myClass = db.prepare('SELECT * FROM classes WHERE tahun = ? AND kode = ? LIMIT 1').get(targetTahun, archEnr.kelas) || null;
+            targetAssignments = db.prepare('SELECT * FROM assignments WHERE tahun = ? AND kode = ?').all(targetTahun, archEnr.kelas);
+            archiveNotice = {
+              status: (curEnr && curEnr.status) || 'mutasi_keluar',
+              tahun: full.pesantren.tahun,
+              semester: full.pesantren.semester,
+              archivedTahun: targetTahun,
+              archivedSemester: targetSemester,
+              archivedKelas: archEnr.kelas,
+              mutasiTanggal: (curEnr && curEnr.mutasiTanggal) || '',
+              mutasiCatatan: (curEnr && curEnr.mutasiCatatan) || ''
+            };
+          }
+        }
+
         const usedSubIds = new Set();
         for (const st of classPool) {
           for (const [k, v] of Object.entries(st.scores || {})) {
@@ -686,9 +757,9 @@ const server = http.createServer(async (req, res) => {
           }
         }
         const usedMapelNames = new Set(
-          myStudent ? full.assignments.filter(a => a.kode === myStudent.kelas).map(a => a.mapel) : []
+          myStudent ? targetAssignments.filter(a => a.kode === myStudent.kelas).map(a => a.mapel) : []
         );
-        const effectiveSubjects = full.subjects.filter(sub => sub.active !== false || usedSubIds.has(sub.id) || usedMapelNames.has(sub.namaArab));
+        const effectiveSubjects = targetSubjects.filter(sub => sub.active !== false || usedSubIds.has(sub.id) || usedMapelNames.has(sub.namaArab));
         let scopedStudents = [];
         if (myStudent) {
           const totals = classPool.map(s => {
@@ -713,9 +784,12 @@ const server = http.createServer(async (req, res) => {
           const rank = meEntry
             ? totals.findIndex(x => x.total === meEntry.total && x.syari === meEntry.syari && Math.abs(x.avg - meEntry.avg) < 1e-9) + 1
             : 1;
-          scopedStudents = [{ ...myStudent, rankOverride: { rank: rank || 1, totalStudents: classPool.length } }];
+          scopedStudents = [{
+            ...myStudent,
+            rankOverride: { rank: rank || 1, totalStudents: classPool.length },
+            ...(archiveNotice ? { archiveNotice } : {})
+          }];
         }
-        const myClass = myStudent ? full.classes.find(c => c.kode === myStudent.kelas) : null;
         const myWali = (myClass && myClass.waliId) ? full.teachers.find(t => t.id === myClass.waliId) : null;
         return sendJson(res, 200, {
           pesantren: full.pesantren,
@@ -725,6 +799,7 @@ const server = http.createServer(async (req, res) => {
           teachers: myWali ? [{ id: myWali.id, nama: myWali.nama, namaArab: myWali.namaArab, waliKelas: myWali.waliKelas, active: myWali.active }] : [],
           assignments: [],
           students: scopedStudents,
+          mutatedStudents: [],
           activities: []
         });
       }
@@ -792,6 +867,7 @@ const server = http.createServer(async (req, res) => {
           teachers: scopedTeachers,
           assignments: myAssignments,
           students: scopedStudents,
+          mutatedStudents: waliKelas ? (full.mutatedStudents || []).filter(s => s.kelas === waliKelas) : [],
           activities: []
         });
       }
@@ -954,10 +1030,15 @@ const server = http.createServer(async (req, res) => {
           vals.push(rawVal === null ? null : String(rawVal));
         }
       }
+      let carriedOver = 0;
       if (sets.length > 0) {
         db.prepare(`UPDATE pesantren_profile SET ${sets.join(', ')} WHERE id = 1`).run(...vals);
       }
-      sendJson(res, 200, { ok: true });
+      const effectivePeriod = getActivePeriod();
+      if (effectivePeriod.semester === 'Genap') {
+        carriedOver = carryOverEnrollmentsToGenap(effectivePeriod.tahun);
+      }
+      sendJson(res, 200, { ok: true, carriedOver });
       return;
     }
 
@@ -1053,7 +1134,7 @@ const server = http.createServer(async (req, res) => {
       const classId = Number(classDelMatch[1]);
       const cls = db.prepare('SELECT * FROM classes WHERE id = ?').get(classId);
       if (!cls) return sendJson(res, 404, { error: 'Kelas tidak ditemukan' });
-      const stCount = db.prepare('SELECT COUNT(*) AS cnt FROM student_enrollments WHERE tahun = ? AND kelas = ?').get(cls.tahun, cls.kode).cnt;
+      const stCount = db.prepare("SELECT COUNT(*) AS cnt FROM student_enrollments WHERE tahun = ? AND kelas = ? AND COALESCE(status, 'aktif') = 'aktif'").get(cls.tahun, cls.kode).cnt;
       if (stCount > 0) {
         return sendJson(res, 409, { error: `Kelas ${cls.kode} masih memiliki ${stCount} santri di tahun ${cls.tahun}. Hapus atau pindahkan santri terlebih dahulu.` });
       }
@@ -1475,15 +1556,31 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    // Students: Add or update bulk (deduplicate by valid NISN, preserve existing biodata, per-semester attendance)
+    // Students: Add or update bulk / single mutasi masuk (per-semester enrollments, lossless across semesters)
     if (method === 'POST' && pathname === '/api/students') {
-      if (!requireRole(req, res, ['admin'])) return;
+      const actorUser = requireRole(req, res, ['admin']);
+      if (!actorUser) return;
       const body = await readJsonBody(req);
       const { tahun: activeTahun, semester: activeSemester } = getActivePeriod();
       if (body.tahun && String(body.tahun).trim() !== activeTahun) {
         return sendJson(res, 409, { error: `Tahun pelajaran aktif telah berubah menjadi ${activeTahun}. Silakan muat ulang halaman.` });
       }
-      const list = (Array.isArray(body.students) ? body.students : [body]).filter(x => x && typeof x === 'object');
+      if (body.semester && String(body.semester).trim() !== activeSemester) {
+        return sendJson(res, 409, { error: `Semester aktif telah berubah menjadi ${activeSemester}. Silakan muat ulang halaman.` });
+      }
+      const isBulk = Array.isArray(body.students);
+      const list = (isBulk ? body.students : [body]).filter(x => x && typeof x === 'object');
+      if (!isBulk && list.length === 1) {
+        const singleNama = String(list[0].nama || '').trim();
+        const singleKelas = String(list[0].kelas || '').trim();
+        if (!singleNama || !singleKelas) {
+          return sendJson(res, 400, { error: 'Nama santri dan kelas wajib diisi' });
+        }
+        const clsRow = db.prepare('SELECT id FROM classes WHERE tahun = ? AND kode = ?').get(activeTahun, singleKelas);
+        if (!clsRow) {
+          return sendJson(res, 400, { error: `Kelas "${singleKelas}" tidak ditemukan di tahun pelajaran ${activeTahun}` });
+        }
+      }
       const findByNisn = db.prepare("SELECT id FROM students WHERE nisn = ?");
       const insertSt = db.prepare(`
         INSERT INTO students (nama, nis, nisn, nik, tempatLahir, tglLahir, kelas, jk, alamat, telp, ayah, ibu, wali, sakit, izin, alpa)
@@ -1506,9 +1603,13 @@ const server = http.createServer(async (req, res) => {
         WHERE id = ?
       `);
       const upsertEnrollment = db.prepare(`
-        INSERT INTO student_enrollments (studentId, tahun, kelas, sakit, izin, alpa)
-        VALUES (?, ?, ?, ?, ?, ?)
-        ON CONFLICT(studentId, tahun) DO UPDATE SET kelas = excluded.kelas
+        INSERT INTO student_enrollments (studentId, tahun, semester, kelas, status, mutasiCatatan, mutasiTanggal, sakit, izin, alpa)
+        VALUES (?, ?, ?, ?, 'aktif', ?, ?, 0, 0, 0)
+        ON CONFLICT(studentId, tahun, semester) DO UPDATE SET
+          kelas = excluded.kelas,
+          status = 'aktif',
+          mutasiCatatan = CASE WHEN excluded.mutasiCatatan != '' THEN excluded.mutasiCatatan ELSE student_enrollments.mutasiCatatan END,
+          mutasiTanggal = CASE WHEN excluded.mutasiTanggal != '' THEN excluded.mutasiTanggal ELSE student_enrollments.mutasiTanggal END
       `);
       const upsertAttendance = db.prepare(`
         INSERT INTO student_attendance (studentId, tahun, semester, sakit, izin, alpa)
@@ -1542,6 +1643,7 @@ const server = http.createServer(async (req, res) => {
       }
       let added = 0;
       let updated = 0;
+      let lastStId = 0;
       runInTransaction(() => {
         for (const st of list) {
           const cleanNama = String(st.nama || '').trim();
@@ -1555,6 +1657,8 @@ const server = http.createServer(async (req, res) => {
           const sakitVal = parseAttendanceCount(st.sakit);
           const izinVal = parseAttendanceCount(st.izin);
           const alpaVal = parseAttendanceCount(st.alpa);
+          const mutCatatan = String(st.mutasiCatatan || '').trim().slice(0, 200);
+          const mutTanggal = String(st.mutasiTanggal || '').trim().slice(0, 32);
           if (existing) {
             stId = existing.id;
             updateSt.run(
@@ -1578,7 +1682,8 @@ const server = http.createServer(async (req, res) => {
             stId = Number(info.lastInsertRowid);
             added++;
           }
-          upsertEnrollment.run(stId, activeTahun, targetKelas, 0, 0, 0);
+          lastStId = stId;
+          upsertEnrollment.run(stId, activeTahun, activeSemester, targetKelas, mutCatatan, mutTanggal);
           upsertAttendance.run(stId, activeTahun, activeSemester, sakitVal ?? 0, izinVal ?? 0, alpaVal ?? 0, sakitVal, izinVal, alpaVal);
           if (st.scores && typeof st.scores === 'object') {
             for (const [subId, val] of Object.entries(st.scores)) {
@@ -1596,24 +1701,119 @@ const server = http.createServer(async (req, res) => {
           }
         }
       });
-      sendJson(res, 201, { ok: true, count: added + updated, added, updated });
+      if (!isBulk && list.length === 1 && lastStId) {
+        logActivity(actorUser, `Menambahkan santri ${String(list[0].nama || '').trim()} ke Kelas ${String(list[0].kelas || '').trim()} (${activeTahun} ${activeSemester})`);
+      }
+      sendJson(res, 201, { ok: true, id: lastStId, count: added + updated, added, updated });
       return;
     }
 
-    // Students: Delete all students in a specific class for active tahun (keep other years' data)
+    // Student: Move class for active semester only (preserve previous semester class archive)
+    const moveStudentMatch = pathname.match(/^\/api\/students\/(\d+)\/move-class$/);
+    if (method === 'PUT' && moveStudentMatch) {
+      const actorUser = requireRole(req, res, ['admin']);
+      if (!actorUser) return;
+      const stId = Number(moveStudentMatch[1]);
+      const body = await readJsonBody(req);
+      const { tahun: activeTahun, semester: activeSemester } = getActivePeriod();
+      if (body.tahun && String(body.tahun).trim() !== activeTahun) {
+        return sendJson(res, 409, { error: `Tahun pelajaran aktif telah berubah menjadi ${activeTahun}. Silakan muat ulang halaman.` });
+      }
+      if (body.semester && String(body.semester).trim() !== activeSemester) {
+        return sendJson(res, 409, { error: `Semester aktif telah berubah menjadi ${activeSemester}. Silakan muat ulang halaman.` });
+      }
+      const targetKelas = String(body.targetKelas || '').trim();
+      if (!targetKelas) return sendJson(res, 400, { error: 'Kelas tujuan wajib dipilih' });
+      const clsRow = db.prepare('SELECT id FROM classes WHERE tahun = ? AND kode = ?').get(activeTahun, targetKelas);
+      if (!clsRow) return sendJson(res, 400, { error: `Kelas tujuan "${targetKelas}" tidak ditemukan di tahun ${activeTahun}` });
+      const enr = db.prepare(`
+        SELECT e.kelas, COALESCE(e.status, 'aktif') AS status, s.nama
+        FROM student_enrollments e
+        JOIN students s ON s.id = e.studentId
+        WHERE e.studentId = ? AND e.tahun = ? AND e.semester = ?
+      `).get(stId, activeTahun, activeSemester);
+      if (!enr) {
+        return sendJson(res, 404, { error: `Santri tidak terdaftar pada ${activeTahun} (${activeSemester})` });
+      }
+      if (enr.status !== 'aktif') {
+        return sendJson(res, 400, { error: 'Aktifkan kembali santri sebelum memindahkan kelas' });
+      }
+      if (enr.kelas === targetKelas) {
+        return sendJson(res, 400, { error: `Santri sudah berada di kelas ${targetKelas}` });
+      }
+      runInTransaction(() => {
+        db.prepare('UPDATE student_enrollments SET kelas = ? WHERE studentId = ? AND tahun = ? AND semester = ?')
+          .run(targetKelas, stId, activeTahun, activeSemester);
+        db.prepare('UPDATE students SET kelas = ? WHERE id = ?').run(targetKelas, stId);
+      });
+      logActivity(actorUser, `Memindahkan santri ${enr.nama} dari Kelas ${enr.kelas} ke ${targetKelas} (${activeTahun} ${activeSemester})`);
+      sendJson(res, 200, { ok: true, studentId: stId, fromKelas: enr.kelas, toKelas: targetKelas });
+      return;
+    }
+
+    // Student: Set enrollment status ('mutasi_keluar' | 'aktif') for active semester only
+    const statusStudentMatch = pathname.match(/^\/api\/students\/(\d+)\/status$/);
+    if (method === 'PUT' && statusStudentMatch) {
+      const actorUser = requireRole(req, res, ['admin']);
+      if (!actorUser) return;
+      const stId = Number(statusStudentMatch[1]);
+      const body = await readJsonBody(req);
+      const { tahun: activeTahun, semester: activeSemester } = getActivePeriod();
+      if (body.tahun && String(body.tahun).trim() !== activeTahun) {
+        return sendJson(res, 409, { error: `Tahun pelajaran aktif telah berubah menjadi ${activeTahun}. Silakan muat ulang halaman.` });
+      }
+      if (body.semester && String(body.semester).trim() !== activeSemester) {
+        return sendJson(res, 409, { error: `Semester aktif telah berubah menjadi ${activeSemester}. Silakan muat ulang halaman.` });
+      }
+      const nextStatus = String(body.status || '').trim();
+      if (!['aktif', 'mutasi_keluar'].includes(nextStatus)) {
+        return sendJson(res, 400, { error: 'Status santri harus "aktif" atau "mutasi_keluar"' });
+      }
+      const enr = db.prepare(`
+        SELECT e.kelas, COALESCE(e.status, 'aktif') AS status, s.nama
+        FROM student_enrollments e
+        JOIN students s ON s.id = e.studentId
+        WHERE e.studentId = ? AND e.tahun = ? AND e.semester = ?
+      `).get(stId, activeTahun, activeSemester);
+      if (!enr) {
+        return sendJson(res, 404, { error: `Santri tidak terdaftar pada ${activeTahun} (${activeSemester})` });
+      }
+      const mutasiCatatan = nextStatus === 'mutasi_keluar' ? String(body.mutasiCatatan || '').trim().slice(0, 200) : '';
+      const mutasiTanggal = nextStatus === 'mutasi_keluar' ? String(body.mutasiTanggal || '').trim().slice(0, 32) : '';
+      db.prepare(`
+        UPDATE student_enrollments
+        SET status = ?, mutasiCatatan = ?, mutasiTanggal = ?
+        WHERE studentId = ? AND tahun = ? AND semester = ?
+      `).run(nextStatus, mutasiCatatan, mutasiTanggal, stId, activeTahun, activeSemester);
+      logActivity(
+        actorUser,
+        nextStatus === 'mutasi_keluar'
+          ? `Menandai santri ${enr.nama} (${enr.kelas}) mutasi keluar (${activeTahun} ${activeSemester})`
+          : `Mengaktifkan kembali santri ${enr.nama} di Kelas ${enr.kelas} (${activeTahun} ${activeSemester})`
+      );
+      sendJson(res, 200, { ok: true, studentId: stId, status: nextStatus });
+      return;
+    }
+
+    // Students: Delete all students in a specific class for active tahun + semester (keep other semesters' data!)
     if (method === 'DELETE' && pathname === '/api/students') {
       if (!requireRole(req, res, ['admin'])) return;
       const kelas = url.searchParams.get('kelas');
       if (!kelas) return sendJson(res, 400, { error: 'Parameter kelas wajib diisi' });
       const reqTahun = url.searchParams.get('tahun');
-      const { tahun: activeTahun } = getActivePeriod();
+      const reqSemester = url.searchParams.get('semester');
+      const { tahun: activeTahun, semester: activeSemester } = getActivePeriod();
       if (reqTahun && String(reqTahun).trim() !== activeTahun) {
         return sendJson(res, 409, { error: `Tahun pelajaran aktif telah berubah menjadi ${activeTahun}. Silakan muat ulang halaman.` });
       }
-      const rows = db.prepare('SELECT studentId AS id FROM student_enrollments WHERE tahun = ? AND kelas = ?').all(activeTahun, kelas);
-      const delScoresYear = db.prepare('DELETE FROM scores WHERE studentId = ? AND tahun = ?');
+      if (reqSemester && String(reqSemester).trim() !== activeSemester) {
+        return sendJson(res, 409, { error: `Semester aktif telah berubah menjadi ${activeSemester}. Silakan muat ulang halaman.` });
+      }
+      const rows = db.prepare('SELECT studentId AS id FROM student_enrollments WHERE tahun = ? AND semester = ? AND kelas = ?')
+        .all(activeTahun, activeSemester, kelas);
+      const delScoresPeriod = db.prepare('DELETE FROM scores WHERE studentId = ? AND tahun = ? AND semester = ?');
       const delScoresAll = db.prepare('DELETE FROM scores WHERE studentId = ?');
-      const delAttYear = db.prepare('DELETE FROM student_attendance WHERE studentId = ? AND tahun = ?');
+      const delAttPeriod = db.prepare('DELETE FROM student_attendance WHERE studentId = ? AND tahun = ? AND semester = ?');
       const delAttAll = db.prepare('DELETE FROM student_attendance WHERE studentId = ?');
       const countRemaining = db.prepare('SELECT COUNT(*) AS cnt FROM student_enrollments WHERE studentId = ?');
       const findUsers = db.prepare("SELECT id FROM users WHERE role = 'siswa' AND studentId = ?");
@@ -1621,10 +1821,11 @@ const server = http.createServer(async (req, res) => {
       const delUsers = db.prepare("DELETE FROM users WHERE role = 'siswa' AND studentId = ?");
       const delStudent = db.prepare('DELETE FROM students WHERE id = ?');
       runInTransaction(() => {
-        db.prepare('DELETE FROM student_enrollments WHERE tahun = ? AND kelas = ?').run(activeTahun, kelas);
+        db.prepare('DELETE FROM student_enrollments WHERE tahun = ? AND semester = ? AND kelas = ?')
+          .run(activeTahun, activeSemester, kelas);
         for (const r of rows) {
-          delScoresYear.run(r.id, activeTahun);
-          delAttYear.run(r.id, activeTahun);
+          delScoresPeriod.run(r.id, activeTahun, activeSemester);
+          delAttPeriod.run(r.id, activeTahun, activeSemester);
           if (countRemaining.get(r.id).cnt === 0) {
             delScoresAll.run(r.id);
             delAttAll.run(r.id);
@@ -1779,7 +1980,9 @@ const server = http.createServer(async (req, res) => {
       const list = (Array.isArray(body.scores) ? body.scores : [body]).filter(x => x && typeof x === 'object');
 
       const enrolledMap = new Map(
-        db.prepare('SELECT studentId, kelas FROM student_enrollments WHERE tahun = ?').all(activeTahun).map(r => [r.studentId, r.kelas])
+        db.prepare("SELECT studentId, kelas FROM student_enrollments WHERE tahun = ? AND semester = ? AND COALESCE(status, 'aktif') = 'aktif'")
+          .all(activeTahun, activeSemester)
+          .map(r => [r.studentId, r.kelas])
       );
       const allSubjects = db.prepare('SELECT id, namaArab, namaId FROM subjects').all();
       const subjectMap = new Map(allSubjects.map(r => [r.id, r.namaArab]));

@@ -525,6 +525,28 @@
         </div>
       </div>
 
+      <!-- MODAL AKSI SANTRI (MUTASI MASUK / PINDAH KELAS / MUTASI KELUAR) -->
+      <div id="student-action-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="student-action-modal-title" onclick="if(event.target===this) closeStudentActionModal()" class="no-print hidden fixed inset-0 z-[76] bg-black/50 backdrop-blur-[1px] flex items-center justify-center p-4">
+        <div class="w-full max-w-xl max-h-[90vh] bg-white rounded-xl border border-[#e7dcc3] shadow-2xl flex flex-col overflow-hidden" onclick="event.stopPropagation()">
+          <div class="px-5 py-3.5 bg-[#fbf8f1] border-b border-[#e7dcc3] flex items-center justify-between gap-3 flex-shrink-0">
+            <div>
+              <h3 id="student-action-modal-title" class="text-sm sm:text-base font-bold text-[#0f4c3a]">Aksi Santri</h3>
+              <p id="student-action-modal-subtitle" class="text-xs text-slate-500 mt-0.5"></p>
+            </div>
+            <button type="button" onclick="closeStudentActionModal()" class="p-1.5 rounded-lg text-slate-400 hover:text-[#0f4c3a] hover:bg-[#efe6d0]/60 transition" aria-label="Tutup dialog aksi santri">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+          </div>
+          <form id="student-action-modal-form" onsubmit="submitStudentActionModal(event)" class="flex flex-col flex-1 min-h-0">
+            <div id="student-action-modal-body" class="p-5 overflow-y-auto space-y-3.5 text-xs flex-1"></div>
+            <div class="px-5 py-3 bg-[#fbf8f1] border-t border-[#e7dcc3] flex items-center justify-end gap-2 flex-shrink-0">
+              <button type="button" onclick="closeStudentActionModal()" class="px-3.5 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition">Batal</button>
+              <button id="student-action-modal-submit" type="submit" class="px-4 py-2 rounded-lg bg-[#0f4c3a] hover:bg-[#0b3b2e] text-[#f3e3b0] border-b-2 border-[#c9a227] text-xs font-bold shadow-sm transition">Simpan</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
       <!-- ACCESSIBLE REUSABLE MODAL (CONFIRM / INPUT) -->
       <div id="rdp-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="rdp-modal-title" onclick="if(event.target===this) closeRdpModal(null)" class="no-print hidden fixed inset-0 z-[80] bg-black/50 backdrop-blur-[1px] flex items-center justify-center p-4">
         <div class="w-full max-w-md bg-white rounded-xl border border-[#e7dcc3] shadow-2xl overflow-hidden" onclick="event.stopPropagation()">
@@ -735,6 +757,8 @@ const state = {
   teachers: [],
   assignments: [],
   students: [],
+  mutatedStudents: [],
+  siswaViewTab: 'aktif',
   activities: [],
   _mediaStamp: null
 };
@@ -798,6 +822,7 @@ function resetPeriodCachedSelections() {
   state.selectedSiswaTingkat = '';
   state.selectedSiswaKelas = '';
   state.siswaSearch = '';
+  state.siswaViewTab = 'aktif';
   state.selectedPengampuTingkat = '';
   state.selectedPengampuKelas = '';
   state.filterAssignTeacherId = '';
@@ -820,6 +845,7 @@ function clearClientSessionData(clearDrafts = false) {
   state.teachers = [];
   state.assignments = [];
   state.students = [];
+  state.mutatedStudents = [];
   state.activities = [];
   state.activeTeacherId = '';
   state._mediaStamp = null;
@@ -3709,6 +3735,284 @@ function parseCsvLine(line) {
   return result;
 }
 
+let _studentModalState = null;
+
+function closeStudentActionModal() {
+  const overlay = document.getElementById('student-action-modal-overlay');
+  if (overlay) overlay.classList.add('hidden');
+  const prev = _studentModalState && _studentModalState.prevFocus;
+  _studentModalState = null;
+  try {
+    if (prev && typeof prev.focus === 'function') prev.focus();
+  } catch (_) {}
+}
+
+function _openStudentActionOverlay({ mode, studentId = null, title, subtitle, submitText, submitVariant = 'primary', bodyHtml, focusId }) {
+  const overlay = document.getElementById('student-action-modal-overlay');
+  const titleEl = document.getElementById('student-action-modal-title');
+  const subEl = document.getElementById('student-action-modal-subtitle');
+  const bodyEl = document.getElementById('student-action-modal-body');
+  const submitBtn = document.getElementById('student-action-modal-submit');
+  if (!overlay || !bodyEl || !submitBtn) return;
+
+  _studentModalState = { mode, studentId, prevFocus: document.activeElement };
+  if (titleEl) titleEl.textContent = title;
+  if (subEl) subEl.textContent = subtitle || '';
+  bodyEl.innerHTML = bodyHtml;
+  submitBtn.textContent = submitText || 'Simpan';
+  submitBtn.className = submitVariant === 'danger'
+    ? 'px-4 py-2 rounded-lg bg-rose-700 hover:bg-rose-800 text-white text-xs font-bold shadow-sm transition'
+    : 'px-4 py-2 rounded-lg bg-[#0f4c3a] hover:bg-[#0b3b2e] text-[#f3e3b0] border-b-2 border-[#c9a227] text-xs font-bold shadow-sm transition';
+  overlay.classList.remove('hidden');
+  setTimeout(() => {
+    const el = focusId ? document.getElementById(focusId) : null;
+    if (el) el.focus();
+  }, 15);
+}
+
+function openAddStudentModal() {
+  const sortedClasses = sortClasses(state.classes || []);
+  if (sortedClasses.length === 0) {
+    showToast('Tambahkan kelas terlebih dahulu di menu Kelas → Wali Kelas');
+    return;
+  }
+  const defaultKelas = state.selectedSiswaKelas && sortedClasses.some(c => c.kode === state.selectedSiswaKelas)
+    ? state.selectedSiswaKelas
+    : sortedClasses[0].kode;
+  const p = state.pesantren || {};
+  const todayIso = new Date().toISOString().slice(0, 10);
+
+  _openStudentActionOverlay({
+    mode: 'add',
+    title: 'Tambah Santri / Mutasi Masuk',
+    subtitle: `Periode aktif: Semester ${p.semester || 'Ganjil'} • ${p.tahun || '2026/2027'}`,
+    submitText: '+ Simpan Santri',
+    focusId: 'sa-nama',
+    bodyHtml: `
+      <div class="p-3 rounded-lg bg-[#fbf8f1] border border-[#e7dcc3] text-slate-600 leading-relaxed">
+        Santri baru atau <b>mutasi masuk</b> akan langsung terdaftar aktif pada <b>Semester ${escapeHtml(p.semester || 'Ganjil')} (${escapeHtml(p.tahun || '')})</b> tanpa memengaruhi daftar santri di semester sebelumnya.
+      </div>
+      <div class="grid sm:grid-cols-2 gap-3">
+        <div class="sm:col-span-2">
+          <label for="sa-nama" class="block font-semibold text-[#0f4c3a] mb-1">Nama Lengkap Santri <span class="text-rose-600">*</span></label>
+          <input id="sa-nama" type="text" required placeholder="Nama lengkap sesuai data resmi" class="w-full border border-[#e7dcc3] rounded-lg px-3 py-2 bg-white" />
+        </div>
+        <div>
+          <label for="sa-kelas" class="block font-semibold text-[#0f4c3a] mb-1">Kelas Penempatan <span class="text-rose-600">*</span></label>
+          <select id="sa-kelas" required class="w-full border border-[#e7dcc3] rounded-lg px-3 py-2 bg-white font-semibold">
+            ${sortedClasses.map(c => `<option value="${escapeHtml(c.kode)}" ${c.kode === defaultKelas ? 'selected' : ''}>Kelas ${escapeHtml(c.kode)}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <label for="sa-jk" class="block font-semibold text-[#0f4c3a] mb-1">Jenis Kelamin</label>
+          <select id="sa-jk" class="w-full border border-[#e7dcc3] rounded-lg px-3 py-2 bg-white">
+            <option value="Laki-laki">L (Laki-laki)</option>
+            <option value="Perempuan">P (Perempuan)</option>
+          </select>
+        </div>
+        <div>
+          <label for="sa-nisn" class="block font-semibold text-[#0f4c3a] mb-1">NISN (juga Username Login)</label>
+          <input id="sa-nisn" type="text" placeholder="Contoh: 0138811379" class="w-full border border-[#e7dcc3] rounded-lg px-3 py-2 bg-white font-mono" />
+        </div>
+        <div>
+          <label for="sa-nis" class="block font-semibold text-[#0f4c3a] mb-1">NIS</label>
+          <input id="sa-nis" type="text" placeholder="Opsional" class="w-full border border-[#e7dcc3] rounded-lg px-3 py-2 bg-white font-mono" />
+        </div>
+        <div>
+          <label for="sa-tempat" class="block font-semibold text-[#0f4c3a] mb-1">Tempat Lahir</label>
+          <input id="sa-tempat" type="text" placeholder="Kabupaten / Kota" class="w-full border border-[#e7dcc3] rounded-lg px-3 py-2 bg-white" />
+        </div>
+        <div>
+          <label for="sa-tgl" class="block font-semibold text-[#0f4c3a] mb-1">Tanggal Lahir</label>
+          <input id="sa-tgl" type="text" placeholder="Contoh: 15-07-2013" class="w-full border border-[#e7dcc3] rounded-lg px-3 py-2 bg-white" />
+        </div>
+        <div class="sm:col-span-2">
+          <label for="sa-alamat" class="block font-semibold text-[#0f4c3a] mb-1">Alamat</label>
+          <input id="sa-alamat" type="text" placeholder="Alamat tempat tinggal santri" class="w-full border border-[#e7dcc3] rounded-lg px-3 py-2 bg-white" />
+        </div>
+        <div>
+          <label for="sa-ayah" class="block font-semibold text-[#0f4c3a] mb-1">Nama Ayah / Wali</label>
+          <input id="sa-ayah" type="text" placeholder="Nama orang tua / wali" class="w-full border border-[#e7dcc3] rounded-lg px-3 py-2 bg-white" />
+        </div>
+        <div>
+          <label for="sa-mutasi-tgl" class="block font-semibold text-[#0f4c3a] mb-1">Tanggal Masuk (Opsional)</label>
+          <input id="sa-mutasi-tgl" type="date" value="${escapeHtml(todayIso)}" class="w-full border border-[#e7dcc3] rounded-lg px-3 py-2 bg-white" />
+        </div>
+        <div class="sm:col-span-2">
+          <label for="sa-mutasi-cat" class="block font-semibold text-[#0f4c3a] mb-1">Keterangan Mutasi Masuk (Opsional)</label>
+          <input id="sa-mutasi-cat" type="text" maxlength="200" placeholder="Mis. Pindahan dari MTs ... pada Semester 2" class="w-full border border-[#e7dcc3] rounded-lg px-3 py-2 bg-white" />
+        </div>
+      </div>
+    `
+  });
+}
+
+function openMoveStudentModal(studentId) {
+  const st = state.students.find(s => s.id === Number(studentId));
+  if (!st) return;
+  const targetChoices = sortClasses((state.classes || []).filter(c => c.kode !== st.kelas));
+  if (targetChoices.length === 0) {
+    showToast('Belum ada kelas lain yang tersedia sebagai tujuan pindah kelas');
+    return;
+  }
+  const p = state.pesantren || {};
+  _openStudentActionOverlay({
+    mode: 'move',
+    studentId: st.id,
+    title: 'Pindah Kelas Santri',
+    subtitle: `${st.nama} • Kelas saat ini: ${st.kelas}`,
+    submitText: 'Pindahkan Kelas',
+    focusId: 'sa-target-kelas',
+    bodyHtml: `
+      <div class="p-3 rounded-lg bg-[#fbf8f1] border border-[#e7dcc3] text-slate-700 leading-relaxed">
+        Perpindahan hanya berlaku pada <b>Semester ${escapeHtml(p.semester || 'Ganjil')} (${escapeHtml(p.tahun || '')})</b>. Riwayat kelas pada semester sebelumnya tetap tercatat <b>${escapeHtml(st.kelas)}</b>, sedangkan nilai semester aktif ikut terbawa ke kelas baru.
+      </div>
+      <div class="grid sm:grid-cols-2 gap-3">
+        <div>
+          <div class="font-semibold text-[#0f4c3a] mb-1">Kelas Asal</div>
+          <div class="px-3 py-2 rounded-lg border border-[#e7dcc3] bg-slate-100 font-bold text-slate-700">Kelas ${escapeHtml(st.kelas)}</div>
+        </div>
+        <div>
+          <label for="sa-target-kelas" class="block font-semibold text-[#0f4c3a] mb-1">Kelas Tujuan <span class="text-rose-600">*</span></label>
+          <select id="sa-target-kelas" required class="w-full border border-[#e7dcc3] rounded-lg px-3 py-2 bg-white font-semibold">
+            ${targetChoices.map(c => `<option value="${escapeHtml(c.kode)}">Kelas ${escapeHtml(c.kode)}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+    `
+  });
+}
+
+function openMutasiKeluarModal(studentId) {
+  const st = state.students.find(s => s.id === Number(studentId));
+  if (!st) return;
+  const p = state.pesantren || {};
+  const todayIso = new Date().toISOString().slice(0, 10);
+  _openStudentActionOverlay({
+    mode: 'mutasi_keluar',
+    studentId: st.id,
+    title: 'Tandai Mutasi Keluar',
+    subtitle: `${st.nama} • Kelas ${st.kelas}`,
+    submitText: 'Tandai Mutasi Keluar',
+    submitVariant: 'danger',
+    focusId: 'sa-mutasi-cat',
+    bodyHtml: `
+      <div class="p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-950 leading-relaxed">
+        Santri akan dikeluarkan dari daftar penilaian, rapor, ranking, dan ledger <b>Semester ${escapeHtml(p.semester || 'Ganjil')} (${escapeHtml(p.tahun || '')})</b>. Arsip nilai semester sebelumnya tetap tersimpan aman, dan santri tetap bisa login untuk melihat rapor terakhirnya.
+      </div>
+      <div class="space-y-3">
+        <div>
+          <label for="sa-mutasi-tgl" class="block font-semibold text-[#0f4c3a] mb-1">Tanggal Mutasi Keluar</label>
+          <input id="sa-mutasi-tgl" type="date" value="${escapeHtml(todayIso)}" class="w-full border border-[#e7dcc3] rounded-lg px-3 py-2 bg-white" />
+        </div>
+        <div>
+          <label for="sa-mutasi-cat" class="block font-semibold text-[#0f4c3a] mb-1">Catatan / Sekolah Tujuan (Opsional)</label>
+          <input id="sa-mutasi-cat" type="text" maxlength="200" placeholder="Mis. Pindah ke MTsN / Pondok lain" class="w-full border border-[#e7dcc3] rounded-lg px-3 py-2 bg-white" />
+        </div>
+      </div>
+    `
+  });
+}
+
+async function submitStudentActionModal(e) {
+  e.preventDefault();
+  if (!_studentModalState) return;
+  const { mode, studentId } = _studentModalState;
+  const submitBtn = document.getElementById('student-action-modal-submit');
+  setButtonBusy(submitBtn, true, 'Menyimpan...');
+  try {
+    if (mode === 'add') {
+      const nama = (document.getElementById('sa-nama')?.value || '').trim();
+      const kelas = (document.getElementById('sa-kelas')?.value || '').trim();
+      const jk = document.getElementById('sa-jk')?.value || 'Laki-laki';
+      const nisn = (document.getElementById('sa-nisn')?.value || '').trim();
+      const nis = (document.getElementById('sa-nis')?.value || '').trim();
+      const tempatLahir = (document.getElementById('sa-tempat')?.value || '').trim();
+      const tglLahir = (document.getElementById('sa-tgl')?.value || '').trim();
+      const alamat = (document.getElementById('sa-alamat')?.value || '').trim();
+      const ayah = (document.getElementById('sa-ayah')?.value || '').trim();
+      const mutasiTanggal = (document.getElementById('sa-mutasi-tgl')?.value || '').trim();
+      const mutasiCatatan = (document.getElementById('sa-mutasi-cat')?.value || '').trim();
+      if (!nama || !kelas) { showToast('Nama dan kelas santri wajib diisi'); return; }
+      const payload = {
+        tahun: state.pesantren.tahun,
+        semester: state.pesantren.semester,
+        nama,
+        kelas,
+        jk,
+        nisn,
+        nis,
+        tempatLahir,
+        tglLahir,
+        alamat,
+        ayah,
+        wali: ayah,
+        mutasiTanggal,
+        mutasiCatatan
+      };
+      const res = await apiCall('POST', '/api/students', payload);
+      if (!res || !res.ok) return;
+      state.selectedSiswaTingkat = getKelasTingkat(kelas);
+      state.selectedSiswaKelas = kelas;
+      state.siswaViewTab = 'aktif';
+      closeStudentActionModal();
+      await refreshStateFromServer(true);
+      await loadUsersList();
+      showToast(`Santri ${nama} ditambahkan ke Kelas ${kelas}`);
+    } else if (mode === 'move') {
+      const targetKelas = (document.getElementById('sa-target-kelas')?.value || '').trim();
+      if (!targetKelas) { showToast('Pilih kelas tujuan terlebih dahulu'); return; }
+      const res = await apiCall('PUT', `/api/students/${studentId}/move-class`, {
+        targetKelas,
+        tahun: state.pesantren.tahun,
+        semester: state.pesantren.semester
+      });
+      if (!res || !res.ok) return;
+      closeStudentActionModal();
+      await refreshStateFromServer(true);
+      showToast(`Santri dipindahkan ke Kelas ${targetKelas}`);
+    } else if (mode === 'mutasi_keluar') {
+      const mutasiTanggal = (document.getElementById('sa-mutasi-tgl')?.value || '').trim();
+      const mutasiCatatan = (document.getElementById('sa-mutasi-cat')?.value || '').trim();
+      const res = await apiCall('PUT', `/api/students/${studentId}/status`, {
+        status: 'mutasi_keluar',
+        mutasiTanggal,
+        mutasiCatatan,
+        tahun: state.pesantren.tahun,
+        semester: state.pesantren.semester
+      });
+      if (!res || !res.ok) return;
+      closeStudentActionModal();
+      await refreshStateFromServer(true);
+      showToast('Santri ditandai mutasi keluar untuk semester aktif');
+    }
+  } finally {
+    setButtonBusy(submitBtn, false);
+  }
+}
+
+async function restoreMutatedStudent(studentId) {
+  const st = (state.mutatedStudents || []).find(s => s.id === Number(studentId));
+  if (!st) return;
+  const ok = await openConfirmModal({
+    title: 'Aktifkan Kembali Santri',
+    message: `Aktifkan kembali ${st.nama} di Kelas ${st.kelas} untuk Semester ${state.pesantren.semester} (${state.pesantren.tahun})?`,
+    confirmText: 'Aktifkan Kembali',
+    variant: 'primary'
+  });
+  if (!ok) return;
+  const res = await apiCall('PUT', `/api/students/${studentId}/status`, {
+    status: 'aktif',
+    tahun: state.pesantren.tahun,
+    semester: state.pesantren.semester
+  });
+  if (res && res.ok) {
+    state.siswaViewTab = 'aktif';
+    await refreshStateFromServer(true);
+    showToast(`${st.nama} kembali aktif di Kelas ${st.kelas}`);
+  }
+}
+
 function renderDataSiswa() {
   const waliKelas = getWaliKelasKode();
   if (waliKelas) {
@@ -3722,7 +4026,10 @@ function renderDataSiswa() {
     state.selectedSiswaKelas = '';
   }
   const kelas = waliKelas || state.selectedSiswaKelas;
+  const viewTab = state.siswaViewTab === 'mutasi' ? 'mutasi' : 'aktif';
   const classStudents = kelas ? state.students.filter(s => s.kelas === kelas) : [];
+  const allMutated = state.mutatedStudents || [];
+  const scopedMutated = kelas ? allMutated.filter(s => s.kelas === kelas) : allMutated;
   const qSiswa = String(state.siswaSearch || '').trim().toLowerCase();
   const visibleStudents = qSiswa
     ? classStudents.filter(s =>
@@ -3731,14 +4038,28 @@ function renderDataSiswa() {
         String(s.nisn || '').toLowerCase().includes(qSiswa)
       )
     : classStudents;
+  const visibleMutated = qSiswa
+    ? scopedMutated.filter(s =>
+        String(s.nama || '').toLowerCase().includes(qSiswa) ||
+        String(s.nis || '').toLowerCase().includes(qSiswa) ||
+        String(s.nisn || '').toLowerCase().includes(qSiswa) ||
+        String(s.mutasiCatatan || '').toLowerCase().includes(qSiswa)
+      )
+    : scopedMutated;
   const isAdmin = state.mode === 'proktor' && (!state.authUser || state.authUser.role === 'admin');
+  const activeSemesterLabel = `${state.pesantren?.semester || 'Ganjil'} • ${state.pesantren?.tahun || ''}`;
 
   return `
     ${renderPageHeader(
       `Data Santri / Peserta Didik${waliKelas ? ` — Kelas ${waliKelas}` : ''}`,
       waliKelas
-        ? `Menampilkan data santri khusus kelas perwalian Anda (Kelas ${escapeHtml(waliKelas)}).`
-        : 'Pilih Tingkat & Kelas, lalu kelola atau unggah data anggota kelas (.xlsx).'
+        ? `Menampilkan data santri khusus kelas perwalian Anda (Kelas ${escapeHtml(waliKelas)}) pada ${escapeHtml(activeSemesterLabel)}.`
+        : `Kelola santri aktif, mutasi masuk, pindah kelas, & mutasi keluar untuk ${escapeHtml(activeSemesterLabel)}.`,
+      isAdmin ? `
+        <button type="button" onclick="openAddStudentModal()" class="px-3.5 py-2 rounded-lg bg-[#0f4c3a] hover:bg-[#0b3b2e] text-[#f3e3b0] border-b-2 border-[#c9a227] text-xs font-bold shadow-sm transition whitespace-nowrap">
+          + Tambah / Mutasi Masuk
+        </button>
+      ` : ''
     )}
     <div class="rdp-card p-5 space-y-4">
       <div class="flex flex-wrap items-center justify-between gap-3 border-b border-[#e7dcc3] pb-3">
@@ -3767,14 +4088,19 @@ function renderDataSiswa() {
           </div>
         `}
         <div class="w-full sm:w-64">
-          <input id="siswa-search-input" type="search" aria-label="Cari santri berdasarkan nama, NIS, atau NISN" value="${escapeHtml(state.siswaSearch || '')}" oninput="updateSearchAndRender('siswa-search-input', 'siswaSearch', this.value)" placeholder="Cari nama, NIS, atau NISN..." ${!kelas ? 'disabled' : ''} class="w-full border border-[#e7dcc3] rounded-lg px-3 py-1.5 text-xs bg-white disabled:bg-slate-100 disabled:text-slate-400" />
+          <input id="siswa-search-input" type="search" aria-label="Cari santri berdasarkan nama, NIS, atau NISN" value="${escapeHtml(state.siswaSearch || '')}" oninput="updateSearchAndRender('siswa-search-input', 'siswaSearch', this.value)" placeholder="Cari nama, NIS, atau NISN..." ${!kelas && viewTab === 'aktif' ? 'disabled' : ''} class="w-full border border-[#e7dcc3] rounded-lg px-3 py-1.5 text-xs bg-white disabled:bg-slate-100 disabled:text-slate-400" />
         </div>
       </div>
 
       <div class="flex flex-wrap items-center justify-between gap-2 bg-[#fbf8f1] p-3 rounded-lg border border-[#e7dcc3] text-xs">
-        <div class="font-semibold text-[#0f4c3a]">
-          Kelas Terpilih: <span class="px-2 py-0.5 rounded bg-[#0f4c3a] text-[#f3e3b0] font-bold">Kelas ${escapeHtml(kelas || '-')}</span>
-          <span class="text-slate-600 font-normal ml-1 tabular-nums">(${visibleStudents.length}${qSiswa ? ` / ${classStudents.length}` : ''} santri)</span>
+        <div class="flex flex-wrap items-center gap-2">
+          <button type="button" aria-pressed="${viewTab === 'aktif' ? 'true' : 'false'}" onclick="state.siswaViewTab='aktif'; renderPage()" class="min-h-[34px] px-3 py-1 rounded-full font-semibold border transition ${viewTab === 'aktif' ? 'bg-[#0f4c3a] text-[#f3e3b0] border-[#0f4c3a]' : 'bg-white text-slate-700 border-[#e7dcc3] hover:bg-white/80'}">
+            Santri Aktif (${kelas ? visibleStudents.length : classStudents.length})
+          </button>
+          <button type="button" aria-pressed="${viewTab === 'mutasi' ? 'true' : 'false'}" onclick="state.siswaViewTab='mutasi'; renderPage()" class="min-h-[34px] px-3 py-1 rounded-full font-semibold border transition ${viewTab === 'mutasi' ? 'bg-amber-700 text-white border-amber-700' : 'bg-white text-slate-700 border-[#e7dcc3] hover:bg-white/80'}">
+            Mutasi Keluar (${scopedMutated.length})
+          </button>
+          ${kelas ? `<span class="text-slate-600 font-medium ml-1">Kelas <b class="text-[#0f4c3a]">${escapeHtml(kelas)}</b></span>` : ''}
         </div>
         <div class="flex flex-wrap items-center gap-2">
           ${isAdmin ? `
@@ -3784,7 +4110,7 @@ function renderDataSiswa() {
               <input type="file" aria-label="Upload data santri Excel" accept=".xlsx,.xls,.csv" onchange="handleStudentUpload(event)" class="hidden" ${!kelas ? 'disabled' : ''} />
             </label>
             <button type="button" data-kelas="${escapeHtml(kelas || '')}" onclick="deleteAllStudentsInClass(this.dataset.kelas)" ${!kelas || classStudents.length === 0 ? 'disabled' : ''} class="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-semibold disabled:opacity-40">
-              Hapus Semua Anggota Kelas ${escapeHtml(kelas || '')}
+              Hapus Kelas ${escapeHtml(kelas || '')}
             </button>
           ` : `
             <span class="px-2.5 py-1 rounded-lg bg-white border border-[#e7dcc3] text-slate-600 font-medium">Mode baca (Wali Kelas)</span>
@@ -3792,44 +4118,90 @@ function renderDataSiswa() {
         </div>
       </div>
 
-      <div class="rdp-table-wrap rounded-lg border border-[#e7dcc3]">
-        <table class="w-full text-left border-collapse text-xs rdp-table-sticky">
-          <thead>
-            <tr class="bg-[#fbf8f1] border-b border-[#e7dcc3] font-bold text-[#0f4c3a]">
-              <th class="px-3 py-2.5 border-r border-[#e7dcc3] text-center w-10">No</th>
-              <th class="px-3 py-2.5 border-r border-[#e7dcc3]">NIS</th>
-              <th class="px-3 py-2.5 border-r border-[#e7dcc3]">NISN</th>
-              <th class="px-3 py-2.5 border-r border-[#e7dcc3]">Nama</th>
-              <th class="px-3 py-2.5 border-r border-[#e7dcc3] text-center">L/P</th>
-              <th class="px-3 py-2.5 border-r border-[#e7dcc3]">Tempat, Tgl Lahir</th>
-              <th class="px-3 py-2.5 border-r border-[#e7dcc3]">Alamat</th>
-              <th class="px-3 py-2.5">Nama Ayah / Wali</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-[#e7dcc3]">
-            ${visibleStudents.length === 0 ? `
-              <tr><td colspan="8" class="px-4 py-8 text-center text-slate-500">
-                ${!kelas
-                  ? 'Silakan pilih <b>Tingkat</b> dan <b>Kelas</b> terlebih dahulu.'
-                  : (qSiswa
-                    ? `Tidak ada santri yang cocok dengan pencarian "<b>${escapeHtml(state.siswaSearch)}</b>". <button type="button" onclick="updateSearchAndRender('siswa-search-input', 'siswaSearch', '')" class="ml-2 underline font-semibold text-[#0f4c3a]">Reset</button>`
-                    : `Belum ada data santri di Kelas ${escapeHtml(kelas)}.${isAdmin ? ' Gunakan <b>Upload Data (.xlsx)</b> untuk menambahkan.' : ''}`)}
-              </td></tr>
-            ` : visibleStudents.map((s, i) => `
-              <tr class="hover:bg-[#fbf8f1]">
-                <td class="px-3 py-2 border-r border-[#e7dcc3] text-center">${i + 1}</td>
-                <td class="px-3 py-2 border-r border-[#e7dcc3] font-mono">${escapeHtml(s.nis || '-')}</td>
-                <td class="px-3 py-2 border-r border-[#e7dcc3] font-mono">${escapeHtml(s.nisn || '-')}</td>
-                <td class="px-3 py-2 border-r border-[#e7dcc3] font-semibold text-slate-900">${escapeHtml(s.nama)}</td>
-                <td class="px-3 py-2 border-r border-[#e7dcc3] text-center">${s.jk === 'Perempuan' || s.jk === 'P' ? 'P' : 'L'}</td>
-                <td class="px-3 py-2 border-r border-[#e7dcc3]">${escapeHtml(s.tempatLahir || '-')}, ${escapeHtml(s.tglLahir || '-')}</td>
-                <td class="px-3 py-2 border-r border-[#e7dcc3]">${escapeHtml(s.alamat || '-')}</td>
-                <td class="px-3 py-2">${escapeHtml(s.wali && s.wali !== '-' ? s.wali : (s.ayah || '-'))}</td>
+      ${viewTab === 'mutasi' ? `
+        <div class="rdp-table-wrap rounded-lg border border-[#e7dcc3]">
+          <table class="w-full text-left border-collapse text-xs rdp-table-sticky">
+            <thead>
+              <tr class="bg-[#fbf8f1] border-b border-[#e7dcc3] font-bold text-[#0f4c3a]">
+                <th class="px-3 py-2.5 border-r border-[#e7dcc3] text-center w-10">No</th>
+                <th class="px-3 py-2.5 border-r border-[#e7dcc3]">NISN</th>
+                <th class="px-3 py-2.5 border-r border-[#e7dcc3]">Nama Santri</th>
+                <th class="px-3 py-2.5 border-r border-[#e7dcc3] text-center">Kelas Asal</th>
+                <th class="px-3 py-2.5 border-r border-[#e7dcc3]">Tgl Mutasi</th>
+                <th class="px-3 py-2.5 border-r border-[#e7dcc3]">Catatan / Tujuan</th>
+                ${isAdmin ? '<th class="px-3 py-2.5 text-center w-36">Aksi</th>' : ''}
               </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody class="divide-y divide-[#e7dcc3]">
+              ${visibleMutated.length === 0 ? `
+                <tr><td colspan="${isAdmin ? 7 : 6}" class="px-4 py-8 text-center text-slate-500 italic">
+                  Tidak ada santri berstatus mutasi keluar pada ${escapeHtml(activeSemesterLabel)}${kelas ? ` untuk Kelas ${escapeHtml(kelas)}` : ''}.
+                </td></tr>
+              ` : visibleMutated.map((s, i) => `
+                <tr class="hover:bg-[#fbf8f1]">
+                  <td class="px-3 py-2 border-r border-[#e7dcc3] text-center">${i + 1}</td>
+                  <td class="px-3 py-2 border-r border-[#e7dcc3] font-mono">${escapeHtml(s.nisn || '-')}</td>
+                  <td class="px-3 py-2 border-r border-[#e7dcc3] font-semibold text-slate-900">${escapeHtml(s.nama)}</td>
+                  <td class="px-3 py-2 border-r border-[#e7dcc3] text-center font-semibold text-[#0f4c3a]">${escapeHtml(s.kelas)}</td>
+                  <td class="px-3 py-2 border-r border-[#e7dcc3] font-mono text-slate-600">${escapeHtml(s.mutasiTanggal || '-')}</td>
+                  <td class="px-3 py-2 border-r border-[#e7dcc3] text-slate-700">${escapeHtml(s.mutasiCatatan || '-')}</td>
+                  ${isAdmin ? `
+                    <td class="px-3 py-2 text-center whitespace-nowrap">
+                      <button type="button" onclick="restoreMutatedStudent(${s.id})" class="px-2.5 py-1 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-semibold transition">Aktifkan Kembali</button>
+                    </td>
+                  ` : ''}
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      ` : `
+        <div class="rdp-table-wrap rounded-lg border border-[#e7dcc3]">
+          <table class="w-full text-left border-collapse text-xs rdp-table-sticky">
+            <thead>
+              <tr class="bg-[#fbf8f1] border-b border-[#e7dcc3] font-bold text-[#0f4c3a]">
+                <th class="px-3 py-2.5 border-r border-[#e7dcc3] text-center w-10">No</th>
+                <th class="px-3 py-2.5 border-r border-[#e7dcc3]">NIS</th>
+                <th class="px-3 py-2.5 border-r border-[#e7dcc3]">NISN</th>
+                <th class="px-3 py-2.5 border-r border-[#e7dcc3]">Nama</th>
+                <th class="px-3 py-2.5 border-r border-[#e7dcc3] text-center">L/P</th>
+                <th class="px-3 py-2.5 border-r border-[#e7dcc3]">Tempat, Tgl Lahir</th>
+                <th class="px-3 py-2.5 border-r border-[#e7dcc3]">Alamat</th>
+                <th class="px-3 py-2.5 ${isAdmin ? 'border-r border-[#e7dcc3]' : ''}">Nama Ayah / Wali</th>
+                ${isAdmin ? '<th class="px-3 py-2.5 text-center w-44">Aksi</th>' : ''}
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-[#e7dcc3]">
+              ${visibleStudents.length === 0 ? `
+                <tr><td colspan="${isAdmin ? 9 : 8}" class="px-4 py-8 text-center text-slate-500">
+                  ${!kelas
+                    ? 'Silakan pilih <b>Tingkat</b> dan <b>Kelas</b> terlebih dahulu.'
+                    : (qSiswa
+                      ? `Tidak ada santri yang cocok dengan pencarian "<b>${escapeHtml(state.siswaSearch)}</b>". <button type="button" onclick="updateSearchAndRender('siswa-search-input', 'siswaSearch', '')" class="ml-2 underline font-semibold text-[#0f4c3a]">Reset</button>`
+                      : `Belum ada santri aktif di Kelas ${escapeHtml(kelas)}.${isAdmin ? ' Gunakan <b>+ Tambah / Mutasi Masuk</b> atau <b>Upload Data (.xlsx)</b> untuk menambahkan.' : ''}`)}
+                </td></tr>
+              ` : visibleStudents.map((s, i) => `
+                <tr class="hover:bg-[#fbf8f1]">
+                  <td class="px-3 py-2 border-r border-[#e7dcc3] text-center">${i + 1}</td>
+                  <td class="px-3 py-2 border-r border-[#e7dcc3] font-mono">${escapeHtml(s.nis || '-')}</td>
+                  <td class="px-3 py-2 border-r border-[#e7dcc3] font-mono">${escapeHtml(s.nisn || '-')}</td>
+                  <td class="px-3 py-2 border-r border-[#e7dcc3] font-semibold text-slate-900">${escapeHtml(s.nama)}</td>
+                  <td class="px-3 py-2 border-r border-[#e7dcc3] text-center">${s.jk === 'Perempuan' || s.jk === 'P' ? 'P' : 'L'}</td>
+                  <td class="px-3 py-2 border-r border-[#e7dcc3]">${escapeHtml(s.tempatLahir || '-')}, ${escapeHtml(s.tglLahir || '-')}</td>
+                  <td class="px-3 py-2 border-r border-[#e7dcc3]">${escapeHtml(s.alamat || '-')}</td>
+                  <td class="px-3 py-2 ${isAdmin ? 'border-r border-[#e7dcc3]' : ''}">${escapeHtml(s.wali && s.wali !== '-' ? s.wali : (s.ayah || '-'))}</td>
+                  ${isAdmin ? `
+                    <td class="px-3 py-2 text-center whitespace-nowrap space-x-1">
+                      <button type="button" onclick="openMoveStudentModal(${s.id})" class="px-2 py-1 rounded-lg border border-[#136048] bg-white hover:bg-emerald-50 text-[#0f4c3a] font-semibold transition">Pindah Kelas</button>
+                      <button type="button" onclick="openMutasiKeluarModal(${s.id})" class="px-2 py-1 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-900 font-semibold transition">Mutasi Keluar</button>
+                    </td>
+                  ` : ''}
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `}
     </div>
   `;
 }
@@ -3989,7 +4361,7 @@ function handleStudentUpload(e) {
         return;
       }
       showToast(`Mengupload ${imported.length} santri ke Kelas ${kelas}...`);
-      const res = await apiCall('POST', '/api/students', { tahun: state.pesantren.tahun, students: imported });
+      const res = await apiCall('POST', '/api/students', { tahun: state.pesantren.tahun, semester: state.pesantren.semester, students: imported });
       if (!res || !res.ok) return;
       if (location.protocol === 'file:') {
         for (const stObj of imported) {
@@ -4026,17 +4398,18 @@ async function deleteAllStudentsInClass(kelas) {
   }
   const ok = await openConfirmModal({
     title: `Hapus Semua Santri Kelas ${kelas}`,
-    message: `Hapus SEMUA ${count} anggota santri di Kelas ${kelas}? Data nilai dan akun login santri di kelas ini juga akan dihapus permanen.`,
+    message: `Hapus SEMUA ${count} anggota santri di Kelas ${kelas} pada Semester ${state.pesantren.semester || 'Ganjil'} (${state.pesantren.tahun || ''})? Arsip semester sebelumnya tetap dipertahankan.`,
     confirmText: `Hapus ${count} Santri`,
     variant: 'danger'
   });
   if (!ok) return;
-  const res = await apiCall('DELETE', `/api/students?kelas=${encodeURIComponent(kelas)}&tahun=${encodeURIComponent(state.pesantren.tahun || '')}`);
+  const res = await apiCall('DELETE', `/api/students?kelas=${encodeURIComponent(kelas)}&tahun=${encodeURIComponent(state.pesantren.tahun || '')}&semester=${encodeURIComponent(state.pesantren.semester || '')}`);
   if (res && res.ok) {
     state.students = state.students.filter(s => s.kelas !== kelas);
+    state.mutatedStudents = (state.mutatedStudents || []).filter(s => s.kelas !== kelas);
     await loadUsersList();
     renderPage();
-    showToast(`Semua (${count}) anggota Kelas ${kelas} telah dihapus`);
+    showToast(`Semua (${count}) anggota Kelas ${kelas} pada semester ini telah dihapus`);
   }
 }
 
@@ -6670,6 +7043,10 @@ function renderSingleRaporSheet(s, isLastPage, printAssets = null) {
   const clsObj = state.classes.find(c => c.kode === s.kelas);
   const wali = (clsObj && clsObj.waliId) ? state.teachers.find(t => t.id === clsObj.waliId) : null;
   const kkm = Number.isFinite(Number(state.bobot && state.bobot.kkm)) ? Number(state.bobot.kkm) : 75;
+  const raporTahun = (s.archiveNotice && s.archiveNotice.archivedTahun) || m.tahun;
+  const raporSemesterArab = (s.archiveNotice && s.archiveNotice.archivedSemester)
+    ? (s.archiveNotice.archivedSemester === 'Genap' ? 'الثاني' : 'الأول')
+    : m.semesterArab;
 
   const renderGroupRows = (list) => {
     let sumJam = 0, sumWeighted = 0, hasGroupScore = false;
@@ -6745,8 +7122,8 @@ function renderSingleRaporSheet(s, isLastPage, printAssets = null) {
             <div class="flex justify-between"><span>الاسم :</span><span class="font-bold font-sans text-[13px] self-center">${escapeHtml(s.nama)}</span></div>
             <div class="flex justify-between"><span>الصف :</span><span class="font-bold">${escapeHtml(toArabicKelas(s.kelas))}</span></div>
             <div class="flex justify-between"><span>رقم القيد :</span><span class="font-bold">${escapeHtml(toArabicDigits(s.nisn))}</span></div>
-            <div class="flex justify-between"><span>الفصل الدراسي :</span><span class="font-bold">${escapeHtml(m.semesterArab)}</span></div>
-            <div class="flex justify-between"><span>العام الدراسي :</span><span class="font-bold">${escapeHtml(toArabicDigits(m.tahun))}</span></div>
+            <div class="flex justify-between"><span>الفصل الدراسي :</span><span class="font-bold">${escapeHtml(raporSemesterArab)}</span></div>
+            <div class="flex justify-between"><span>العام الدراسي :</span><span class="font-bold">${escapeHtml(toArabicDigits(raporTahun))}</span></div>
             <div></div>
           </div>
 
@@ -8235,6 +8612,9 @@ function renderSiswaRapor() {
   const tuntasCount = scoredSubjects.filter(sub => Number(st.scores[sub.id]) >= kkm).length;
   const belowKkmCount = scoredCount - tuntasCount;
   const avgPredikat = totals.hasAnyScore ? getPredikatArab(totals.avg) : '—';
+  const arch = st.archiveNotice || null;
+  const displayTahun = (arch && arch.archivedTahun) || state.pesantren.tahun;
+  const displaySemester = (arch && arch.archivedSemester) || state.pesantren.semester;
 
   return `
     <div class="max-w-3xl mx-auto space-y-4">
@@ -8242,9 +8622,21 @@ function renderSiswaRapor() {
         <div class="bg-[#0f4c3a] text-white px-5 py-4 border-b-2 border-[#c9a227]">
           <div class="text-[11px] uppercase tracking-[0.2em] text-[#d9b84a] font-semibold">Portal Rapor Santri / Siswa</div>
           <h1 class="text-lg sm:text-xl font-extrabold mt-0.5">${escapeHtml(st.nama)}</h1>
-          <div class="text-xs text-[#e3eee9] mt-0.5">${escapeHtml(state.pesantren.nama)} • Tahun Pelajaran ${escapeHtml(state.pesantren.tahun)} (${escapeHtml(state.pesantren.semester)})</div>
+          <div class="text-xs text-[#e3eee9] mt-0.5">${escapeHtml(state.pesantren.nama)} • Tahun Pelajaran ${escapeHtml(displayTahun)} (${escapeHtml(displaySemester)})${arch ? ' — Arsip Semester Terakhir' : ''}</div>
         </div>
         <div class="p-5 space-y-4">
+          ${arch ? `
+            <div role="status" class="p-3.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-950 text-xs space-y-1">
+              <div class="font-bold flex items-center gap-1.5">
+                <span aria-hidden="true">ℹ</span>
+                <span>Status Semester ${escapeHtml(arch.semester)} ${escapeHtml(arch.tahun)}: Mutasi Keluar${arch.mutasiTanggal ? ` (${escapeHtml(arch.mutasiTanggal)})` : ''}</span>
+              </div>
+              <div class="text-amber-900">
+                Menampilkan arsip rapor semester aktif terakhir Anda: <b>Semester ${escapeHtml(arch.archivedSemester)} ${escapeHtml(arch.archivedTahun)} — Kelas ${escapeHtml(arch.archivedKelas)}</b>.
+                ${arch.mutasiCatatan ? ` Catatan: ${escapeHtml(arch.mutasiCatatan)}.` : ''}
+              </div>
+            </div>
+          ` : ''}
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
             <div class="p-3 rounded-lg bg-[#fbf8f1] border border-[#e7dcc3]">
               <div class="text-[11px] uppercase text-slate-500 font-semibold">NISN</div>
@@ -8304,7 +8696,7 @@ function renderSiswaRapor() {
                 Pratinjau Rapor
               </button>
               <button type="button" onclick="printSingleRapor(${st.id})" class="min-h-[40px] px-4 py-2 rounded-lg bg-[#0f4c3a] hover:bg-[#0b3b2e] text-[#f3e3b0] border-b-2 border-[#c9a227] font-bold shadow-sm transition">
-                Cetak / Download PDF
+                ${arch ? 'Cetak / Download PDF Arsip' : 'Cetak / Download PDF'}
               </button>
             </div>
           </div>
@@ -8581,6 +8973,7 @@ async function refreshStateFromServer(preserveNav = true, preserveScoreFocus = f
   state.teachers = remote.teachers;
   state.assignments = remote.assignments;
   state.students = remote.students;
+  state.mutatedStudents = Array.isArray(remote.mutatedStudents) ? remote.mutatedStudents : [];
   state.activities = remote.activities;
   if (!preserveNav && state.authUser) applyAuthRole(state.authUser);
   if (state.authUser && state.authUser.role === 'admin') {
@@ -8639,6 +9032,18 @@ document.addEventListener('keydown', (ev) => {
     }
     if (ev.key === 'Tab') {
       trapFocusInOverlay(document.getElementById('rdp-modal-overlay'), ev);
+      return;
+    }
+  }
+  const studentDlg = document.getElementById('student-action-modal-overlay');
+  if (studentDlg && !studentDlg.classList.contains('hidden')) {
+    if (ev.key === 'Escape') {
+      ev.preventDefault();
+      closeStudentActionModal();
+      return;
+    }
+    if (ev.key === 'Tab') {
+      trapFocusInOverlay(studentDlg, ev);
       return;
     }
   }

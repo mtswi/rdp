@@ -132,11 +132,15 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS student_enrollments (
     studentId INTEGER NOT NULL,
     tahun TEXT NOT NULL,
+    semester TEXT NOT NULL DEFAULT 'Ganjil',
     kelas TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'aktif',
+    mutasiCatatan TEXT DEFAULT '',
+    mutasiTanggal TEXT DEFAULT '',
     sakit INTEGER DEFAULT 0,
     izin INTEGER DEFAULT 0,
     alpa INTEGER DEFAULT 0,
-    PRIMARY KEY (studentId, tahun)
+    PRIMARY KEY (studentId, tahun, semester)
   );
 
   CREATE TABLE IF NOT EXISTS student_attendance (
@@ -266,6 +270,7 @@ function ensureIndexes() {
     CREATE UNIQUE INDEX IF NOT EXISTS idx_assignments_unique ON assignments(tahun, teacherId, kode, mapel);
     CREATE INDEX IF NOT EXISTS idx_assignment_periods_period ON assignment_periods(tahun, semester);
     CREATE INDEX IF NOT EXISTS idx_enrollments_tahun_kelas ON student_enrollments(tahun, kelas);
+    CREATE INDEX IF NOT EXISTS idx_enrollments_period_kelas ON student_enrollments(tahun, semester, kelas, status);
     CREATE INDEX IF NOT EXISTS idx_attendance_period ON student_attendance(tahun, semester);
     CREATE INDEX IF NOT EXISTS idx_scores_period ON scores(tahun, semester);
     CREATE INDEX IF NOT EXISTS idx_scores_student_period ON scores(studentId, tahun, semester);
@@ -374,7 +379,7 @@ function seedIfEmpty() {
     INSERT INTO students (id, nama, nisn, nik, tempatLahir, tglLahir, kelas, jk, alamat, telp, ayah, ibu, wali, sakit, izin, alpa)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
-  const insertEnroll = db.prepare('INSERT OR IGNORE INTO student_enrollments (studentId, tahun, kelas, sakit, izin, alpa) VALUES (?, ?, ?, ?, ?, ?)');
+  const insertEnroll = db.prepare("INSERT OR IGNORE INTO student_enrollments (studentId, tahun, semester, kelas, status, mutasiCatatan, mutasiTanggal, sakit, izin, alpa) VALUES (?, ?, ?, ?, 'aktif', '', '', ?, ?, ?)");
   const insertAtt = db.prepare('INSERT OR IGNORE INTO student_attendance (studentId, tahun, semester, sakit, izin, alpa) VALUES (?, ?, ?, ?, ?, ?)');
   const students = [
     [1, 'Imam Suhada', '123456789', '3302060903130001', 'BANYUMAS', '2013-03-09', 'IX.B', 'Laki-laki', 'Kebarongan, Kemranjen, Banyumas', '6282143335497', 'Ahmad Suhada', 'Siti Aminah', 'Ahmad Suhada', 1, 0, 0],
@@ -385,7 +390,7 @@ function seedIfEmpty() {
   ];
   students.forEach(r => {
     insertStudent.run(...r);
-    insertEnroll.run(r[0], SEED_TAHUN, r[6], r[13], r[14], r[15]);
+    insertEnroll.run(r[0], SEED_TAHUN, SEED_SEMESTER, r[6], r[13], r[14], r[15]);
     insertAtt.run(r[0], SEED_TAHUN, SEED_SEMESTER, r[13], r[14], r[15]);
   });
 
@@ -527,10 +532,20 @@ function migratePerYearData() {
 
   const enrCount = db.prepare('SELECT COUNT(*) AS cnt FROM student_enrollments').get().cnt;
   if (enrCount === 0) {
-    db.prepare(`
-      INSERT OR IGNORE INTO student_enrollments (studentId, tahun, kelas, sakit, izin, alpa)
-      SELECT id, ?, kelas, COALESCE(sakit, 0), COALESCE(izin, 0), COALESCE(alpa, 0) FROM students
-    `).run(activeTahun);
+    const profFull0 = db.prepare('SELECT semester FROM pesantren_profile WHERE id = 1').get();
+    const activeSem0 = (profFull0 && profFull0.semester) || 'Ganjil';
+    const enrCols0 = db.prepare('PRAGMA table_info(student_enrollments)').all();
+    if (enrCols0.some(c => c.name === 'semester')) {
+      db.prepare(`
+        INSERT OR IGNORE INTO student_enrollments (studentId, tahun, semester, kelas, status, mutasiCatatan, mutasiTanggal, sakit, izin, alpa)
+        SELECT id, ?, ?, kelas, 'aktif', '', '', COALESCE(sakit, 0), COALESCE(izin, 0), COALESCE(alpa, 0) FROM students
+      `).run(activeTahun, activeSem0);
+    } else {
+      db.prepare(`
+        INSERT OR IGNORE INTO student_enrollments (studentId, tahun, kelas, sakit, izin, alpa)
+        SELECT id, ?, kelas, COALESCE(sakit, 0), COALESCE(izin, 0), COALESCE(alpa, 0) FROM students
+      `).run(activeTahun);
+    }
   }
 
   const attCount = db.prepare('SELECT COUNT(*) AS cnt FROM student_attendance').get().cnt;
@@ -544,7 +559,82 @@ function migratePerYearData() {
   }
 }
 
+function migratePerSemesterEnrollments() {
+  const cols = db.prepare('PRAGMA table_info(student_enrollments)').all();
+  if (!cols.some(c => c.name === 'semester')) {
+    const prof = db.prepare('SELECT semester FROM pesantren_profile WHERE id = 1').get();
+    const activeSemester = (prof && prof.semester === 'Genap') ? 'Genap' : 'Ganjil';
+    runInTransaction(() => {
+      db.exec(`
+        CREATE TABLE student_enrollments_v2 (
+          studentId INTEGER NOT NULL,
+          tahun TEXT NOT NULL,
+          semester TEXT NOT NULL DEFAULT 'Ganjil',
+          kelas TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'aktif',
+          mutasiCatatan TEXT DEFAULT '',
+          mutasiTanggal TEXT DEFAULT '',
+          sakit INTEGER DEFAULT 0,
+          izin INTEGER DEFAULT 0,
+          alpa INTEGER DEFAULT 0,
+          PRIMARY KEY (studentId, tahun, semester)
+        );
+      `);
+      // 1. Seluruh enrollment per-tahun lama disalin ke Ganjil
+      db.exec(`
+        INSERT OR IGNORE INTO student_enrollments_v2
+          (studentId, tahun, semester, kelas, status, mutasiCatatan, mutasiTanggal, sakit, izin, alpa)
+        SELECT studentId, tahun, 'Ganjil', kelas, 'aktif', '', '', COALESCE(sakit, 0), COALESCE(izin, 0), COALESCE(alpa, 0)
+        FROM student_enrollments;
+      `);
+      // 2. Jika semester aktif saat ini Genap, carryover juga ke Genap agar santri aktif langsung tampil
+      if (activeSemester === 'Genap') {
+        db.exec(`
+          INSERT OR IGNORE INTO student_enrollments_v2
+            (studentId, tahun, semester, kelas, status, mutasiCatatan, mutasiTanggal, sakit, izin, alpa)
+          SELECT studentId, tahun, 'Genap', kelas, 'aktif', '', '', COALESCE(sakit, 0), COALESCE(izin, 0), COALESCE(alpa, 0)
+          FROM student_enrollments;
+        `);
+      }
+      // 3. Pastikan setiap pasangan (studentId, tahun, semester) yang punya nilai/absensi ikut tercatat
+      db.exec(`
+        INSERT OR IGNORE INTO student_enrollments_v2
+          (studentId, tahun, semester, kelas, status, mutasiCatatan, mutasiTanggal, sakit, izin, alpa)
+        SELECT DISTINCT p.studentId, p.tahun, p.semester, e.kelas, 'aktif', '', '', 0, 0, 0
+        FROM (
+          SELECT studentId, tahun, semester FROM scores
+          UNION
+          SELECT studentId, tahun, semester FROM student_attendance
+        ) p
+        JOIN student_enrollments e ON e.studentId = p.studentId AND e.tahun = p.tahun;
+      `);
+      db.exec('DROP TABLE student_enrollments; ALTER TABLE student_enrollments_v2 RENAME TO student_enrollments;');
+    });
+  } else {
+    for (const colDef of [
+      "status TEXT NOT NULL DEFAULT 'aktif'",
+      "mutasiCatatan TEXT DEFAULT ''",
+      "mutasiTanggal TEXT DEFAULT ''"
+    ]) {
+      try { db.exec(`ALTER TABLE student_enrollments ADD COLUMN ${colDef};`); } catch (_) {}
+    }
+  }
+}
+
+function carryOverEnrollmentsToGenap(tahun) {
+  if (!tahun) return 0;
+  const info = db.prepare(`
+    INSERT OR IGNORE INTO student_enrollments
+      (studentId, tahun, semester, kelas, status, mutasiCatatan, mutasiTanggal, sakit, izin, alpa)
+    SELECT studentId, tahun, 'Genap', kelas, 'aktif', '', '', 0, 0, 0
+    FROM student_enrollments
+    WHERE tahun = ? AND semester = 'Ganjil' AND COALESCE(status, 'aktif') = 'aktif'
+  `).run(tahun);
+  return Number(info.changes || 0);
+}
+
 migratePerYearData();
+migratePerSemesterEnrollments();
 ensureIndexes();
 
 const DEFAULT_PREDIKAT_LABELS = ['ممتاز', 'جيد جداً', 'جيد', 'مقبول', 'ضعيف'];
@@ -652,12 +742,15 @@ function getFullState(opts = {}) {
     sent: periodSentMap.get(a.id) ?? false
   }));
   const rawStudents = db.prepare(`
-    SELECT s.*, e.kelas AS enrKelas
+    SELECT s.*, e.kelas AS enrKelas,
+           COALESCE(e.status, 'aktif') AS enrStatus,
+           COALESCE(e.mutasiCatatan, '') AS mutasiCatatan,
+           COALESCE(e.mutasiTanggal, '') AS mutasiTanggal
     FROM student_enrollments e
     JOIN students s ON s.id = e.studentId
-    WHERE e.tahun = ?
+    WHERE e.tahun = ? AND e.semester = ?
     ORDER BY s.id ASC
-  `).all(activeTahun);
+  `).all(activeTahun, activeSemester);
   const attRows = db.prepare('SELECT studentId, sakit, izin, alpa FROM student_attendance WHERE tahun = ? AND semester = ?')
     .all(activeTahun, activeSemester);
   const attMap = new Map(attRows.map(r => [r.studentId, r]));
@@ -671,18 +764,35 @@ function getFullState(opts = {}) {
     scoreMap.get(row.studentId)[row.subjectId] = row.score;
   }
 
-  const students = rawStudents.map(st => {
+  const students = [];
+  const mutatedStudents = [];
+  for (const st of rawStudents) {
     const att = attMap.get(st.id);
-    const { enrKelas, ...rest } = st;
-    return {
-      ...rest,
-      kelas: enrKelas,
-      sakit: att ? (att.sakit ?? 0) : 0,
-      izin: att ? (att.izin ?? 0) : 0,
-      alpa: att ? (att.alpa ?? 0) : 0,
-      scores: scoreMap.get(st.id) || {}
-    };
-  });
+    const { enrKelas, enrStatus, mutasiCatatan, mutasiTanggal, ...rest } = st;
+    if (enrStatus === 'mutasi_keluar') {
+      mutatedStudents.push({
+        id: st.id,
+        nama: st.nama,
+        nis: st.nis,
+        nisn: st.nisn,
+        jk: st.jk,
+        kelas: enrKelas,
+        status: 'mutasi_keluar',
+        mutasiCatatan: mutasiCatatan || '',
+        mutasiTanggal: mutasiTanggal || ''
+      });
+    } else {
+      students.push({
+        ...rest,
+        kelas: enrKelas,
+        status: 'aktif',
+        sakit: att ? (att.sakit ?? 0) : 0,
+        izin: att ? (att.izin ?? 0) : 0,
+        alpa: att ? (att.alpa ?? 0) : 0,
+        scores: scoreMap.get(st.id) || {}
+      });
+    }
+  }
 
   return {
     pesantren: {
@@ -719,8 +829,9 @@ function getFullState(opts = {}) {
     teachers,
     assignments,
     students,
+    mutatedStudents,
     activities
   };
 }
 
-module.exports = { db, DB_PATH, getFullState, buildDefaultPredikatConfig, parseAndValidatePredikatConfig, hashPassword, hashPasswordAsync, verifyPassword, verifyPasswordAsync, runInTransaction };
+module.exports = { db, DB_PATH, getFullState, carryOverEnrollmentsToGenap, buildDefaultPredikatConfig, parseAndValidatePredikatConfig, hashPassword, hashPasswordAsync, verifyPassword, verifyPasswordAsync, runInTransaction };

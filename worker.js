@@ -920,6 +920,16 @@ async function handleRequest(request, env) {
       return serveStaticAsset(assetResp, 'image/png', STATIC_ASSET_CACHE);
     }
 
+    if (method === 'GET' && pathname === '/assets/login-hero.webp') {
+      const assetResp = await env.ASSETS.fetch(request);
+      return serveStaticAsset(assetResp, 'image/webp', STATIC_ASSET_CACHE);
+    }
+
+    if (method === 'GET' && pathname === '/assets/rdp-logo-full.png') {
+      const assetResp = await env.ASSETS.fetch(request);
+      return serveStaticAsset(assetResp, 'image/png', STATIC_ASSET_CACHE);
+    }
+
     // Health check (checks D1 connectivity)
     if (method === 'GET' && pathname === '/api/health') {
       try {

@@ -696,6 +696,22 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    if (method === 'GET' && pathname === '/assets/login-hero.webp') {
+      const img = getCachedVendorFile('loginHero', path.join(__dirname, 'public', 'assets', 'login-hero.webp'));
+      if (!img) return sendJson(res, 404, { error: 'Asset not found' });
+      res.writeHead(200, { ...SECURITY_HEADERS, 'Content-Type': 'image/webp', 'Content-Length': img.length, 'Cache-Control': STATIC_CACHE_CONTROL });
+      res.end(img);
+      return;
+    }
+
+    if (method === 'GET' && pathname === '/assets/rdp-logo-full.png') {
+      const img = getCachedVendorFile('rdpLogoFull', path.join(__dirname, 'public', 'assets', 'rdp-logo-full.png'));
+      if (!img) return sendJson(res, 404, { error: 'Asset not found' });
+      res.writeHead(200, { ...SECURITY_HEADERS, 'Content-Type': 'image/png', 'Content-Length': img.length, 'Cache-Control': STATIC_CACHE_CONTROL });
+      res.end(img);
+      return;
+    }
+
     // Health check (checks SQLite connectivity)
     if (method === 'GET' && pathname === '/api/health') {
       try {

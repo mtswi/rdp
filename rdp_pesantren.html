@@ -239,21 +239,6 @@
        Secondary 30% : Hijau Zamrud  #0f4c3a, #136048, #0b3b2e (sidebar, tombol utama, header tabel)
        Tertiary 10%  : Emas Antik    #c9a227, #a07d18 (aksen, menu aktif, tombol simpan, ornamen)
     ========================================================= */
-    .islamic-bg {
-      background-color: #0b3b2e;
-      background-image:
-        radial-gradient(ellipse 80% 60% at 50% 0%, rgba(201,162,39,0.22), transparent 60%),
-        radial-gradient(ellipse 90% 70% at 50% 110%, rgba(0,0,0,0.55), transparent 65%),
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='96' viewBox='0 0 96 96'%3E%3Cg fill='none' stroke='%23c9a227' stroke-opacity='0.20' stroke-width='1'%3E%3Crect x='26' y='26' width='44' height='44'/%3E%3Crect x='26' y='26' width='44' height='44' transform='rotate(45 48 48)'/%3E%3Ccircle cx='48' cy='48' r='10'/%3E%3Cpath d='M0 0L17 17M96 0L79 17M0 96L17 79M96 96L79 79M48 0V8M48 88V96M0 48H8M88 48H96'/%3E%3C/g%3E%3C/svg%3E");
-      background-size: auto, auto, 96px 96px;
-    }
-    .islamic-pattern {
-      opacity: 0.55;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56' viewBox='0 0 56 56'%3E%3Cg fill='none' stroke='%23c9a227' stroke-opacity='0.16' stroke-width='0.8'%3E%3Crect x='16' y='16' width='24' height='24'/%3E%3Crect x='16' y='16' width='24' height='24' transform='rotate(45 28 28)'/%3E%3C/g%3E%3C/svg%3E");
-      background-size: 56px 56px;
-      -webkit-mask-image: linear-gradient(to bottom, #000 0%, rgba(0,0,0,0.35) 70%, transparent 100%);
-      mask-image: linear-gradient(to bottom, #000 0%, rgba(0,0,0,0.35) 70%, transparent 100%);
-    }
 
     /* ============ DESKTOP & MOBILE COLLAPSIBLE SIDEBAR & RESPONSIVE VIEW ============ */
     #sidebar {
@@ -350,79 +335,778 @@
         left: 0.75rem !important;
       }
     }
+
+    /* ============ LOGIN PAGE REDESIGN (LOGIN ONLY) ============ */
+    #login-screen.rdp-login-screen {
+      position: fixed;
+      inset: 0;
+      z-index: 70;
+      display: grid;
+      place-items: stretch;
+      padding: 0;
+      overflow-x: hidden;
+      overflow-y: auto;
+      background: var(--rdp-bg-canvas, #f7f3ea);
+      font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+    }
+    #login-screen.rdp-login-screen,
+    #login-screen.rdp-login-screen *,
+    #login-screen.rdp-login-screen *::before,
+    #login-screen.rdp-login-screen *::after {
+      box-sizing: border-box;
+    }
+    #login-screen.rdp-login-screen.hidden { display: none !important; }
+    .rdp-login-layout {
+      min-height: 100vh;
+      width: 100%;
+      max-width: 100%;
+      display: grid;
+      grid-template-columns: minmax(0, 1.55fr) minmax(400px, 0.8fr);
+      background: var(--rdp-bg-surface, #fff);
+    }
+    .rdp-login-hero {
+      min-height: 100vh;
+      position: relative;
+      isolation: isolate;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      padding: clamp(24px, 3vw, 44px);
+      color: #0b2a22;
+      background: var(--rdp-bg-canvas, #f7f3ea);
+    }
+    .rdp-hero-image {
+      position: absolute;
+      inset: 0;
+      z-index: -3;
+      background-size: cover;
+      background-position: 60% center;
+    }
+    #login-screen.rdp-login-screen:not(.hidden) .rdp-hero-image {
+      background-image: url("/assets/login-hero.webp");
+    }
+    .rdp-hero-shade {
+      position: absolute;
+      inset: 0;
+      z-index: -2;
+      background:
+        radial-gradient(ellipse 72% 58% at 22% 24%, rgba(251, 248, 241, 0.95) 0%, rgba(251, 248, 241, 0.78) 52%, rgba(251, 248, 241, 0) 100%),
+        linear-gradient(180deg, rgba(251, 248, 241, 0.84) 0%, rgba(251, 248, 241, 0.24) 44%, rgba(11, 59, 46, 0.14) 64%, rgba(11, 59, 46, 0.86) 100%);
+    }
+    .rdp-hero-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .rdp-brand-lockup {
+      display: flex;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    .rdp-brand-logo-full {
+      height: clamp(44px, 4.4vw, 56px);
+      width: auto;
+      max-width: 100%;
+      object-fit: contain;
+      display: block;
+      filter: drop-shadow(0 2px 8px rgba(255, 255, 255, 0.75));
+    }
+    .rdp-hero-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      border: 1px solid rgba(15, 76, 58, 0.18);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.88);
+      color: var(--rdp-primary, #0f4c3a);
+      font-size: 12px;
+      font-weight: 700;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 4px 12px rgba(15, 76, 58, 0.06);
+    }
+    .rdp-hero-pill svg {
+      width: 14px;
+      height: 14px;
+      color: var(--rdp-accent, #c9a227);
+      flex-shrink: 0;
+    }
+    .rdp-hero-copy {
+      max-width: 480px;
+      margin-top: clamp(16px, 2.2vh, 28px);
+      margin-bottom: auto;
+      padding-top: 0;
+    }
+    .rdp-bismillah {
+      font-family: "Amiri", "Noto Naskh Arabic", serif;
+      font-size: clamp(22px, 2.1vw, 28px);
+      color: #826311;
+      margin-bottom: 8px;
+      text-shadow: 0 1px 10px rgba(251, 248, 241, 0.92);
+    }
+    .rdp-eyebrow {
+      color: var(--rdp-primary, #0f4c3a);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+    .rdp-hero-copy h1 {
+      font-size: clamp(28px, 3vw, 44px);
+      line-height: 1.1;
+      letter-spacing: -0.04em;
+      font-weight: 900;
+      color: #0b2a22;
+      text-shadow: 0 2px 16px rgba(251, 248, 241, 0.9);
+    }
+    .rdp-hero-copy h1 em {
+      color: var(--rdp-primary-mid, #136048);
+      font-style: normal;
+    }
+    .rdp-hero-copy p {
+      max-width: 456px;
+      margin-top: 12px;
+      color: #16372c;
+      font-size: clamp(14px, 1.05vw, 15px);
+      line-height: 1.65;
+      font-weight: 600;
+      text-shadow: 0 1px 10px rgba(251, 248, 241, 0.92);
+    }
+    .rdp-hero-bottom {
+      margin-top: clamp(20px, 3vh, 36px);
+    }
+    .rdp-feature-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .rdp-feature-card {
+      min-height: 120px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid rgba(231, 220, 195, 0.9);
+      box-shadow: 0 4px 14px rgba(15, 76, 58, 0.08);
+      backdrop-filter: blur(6px);
+    }
+    .rdp-feature-icon {
+      width: 40px;
+      height: 40px;
+      display: grid;
+      place-items: center;
+      border-radius: 12px;
+      flex-shrink: 0;
+    }
+    .rdp-feature-icon svg {
+      width: 24px;
+      height: 24px;
+    }
+    .rdp-feature-icon--emerald {
+      background: #e8f5ee;
+      border: 1px solid rgba(15, 76, 58, 0.14);
+    }
+    .rdp-feature-icon--gold {
+      background: #fdf5e2;
+      border: 1px solid rgba(201, 162, 39, 0.24);
+    }
+    .rdp-feature-icon--teal {
+      background: #e6f3f2;
+      border: 1px solid rgba(14, 109, 109, 0.16);
+    }
+    .rdp-feature-icon--sage {
+      background: #eef5ea;
+      border: 1px solid rgba(22, 101, 52, 0.16);
+    }
+    .rdp-feature-card strong {
+      color: var(--rdp-primary, #0f4c3a);
+      font-size: 13px;
+      font-weight: 800;
+      line-height: 1.3;
+    }
+    .rdp-feature-card > span:last-child {
+      color: var(--rdp-text-muted, #52635c);
+      font-size: 12px;
+      line-height: 1.48;
+      font-weight: 500;
+    }
+    .rdp-hero-footer {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px 20px;
+      margin-top: 16px;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 600;
+      text-shadow: 0 1px 6px rgba(0, 0, 0, 0.45);
+    }
+    .rdp-footer-point {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .rdp-footer-point svg {
+      width: 16px;
+      height: 16px;
+      color: #f3cf63;
+      flex-shrink: 0;
+    }
+    .rdp-footer-version {
+      margin-left: auto;
+      padding: 6px 12px;
+      border-radius: 8px;
+      background: var(--rdp-primary, #0f4c3a);
+      border: 1px solid rgba(242, 212, 124, 0.30);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+    }
+    .rdp-footer-version .rdp-version-num {
+      color: #f2d47c;
+      font-weight: 800;
+    }
+    .rdp-login-panel {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: clamp(20px, 2.8vw, 40px);
+      background: var(--rdp-bg-surface, #fff);
+      border-left: 1px solid var(--rdp-border, #e7dcc3);
+    }
+    .rdp-login-panel-inner {
+      width: 100%;
+      max-width: 420px;
+    }
+    .rdp-institution-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      border-radius: 12px;
+      background: var(--rdp-bg-subtle, #fbf8f1);
+      border: 1px solid var(--rdp-border, #e7dcc3);
+      margin-bottom: 16px;
+    }
+    .rdp-institution-logo {
+      width: 52px;
+      height: 52px;
+      border-radius: 12px;
+      background: var(--rdp-bg-surface, #fff);
+      border: 1.5px solid var(--rdp-border, #e7dcc3);
+      box-shadow: 0 2px 6px rgba(15, 76, 58, 0.06);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4px;
+      flex-shrink: 0;
+      overflow: hidden;
+    }
+    .rdp-institution-meta {
+      flex: 1;
+      min-width: 0;
+    }
+    .rdp-institution-label {
+      margin-bottom: 2px;
+      color: #826311;
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.13em;
+    }
+    .rdp-institution-meta strong {
+      display: block;
+      color: var(--rdp-primary, #0f4c3a);
+      font-size: 13px;
+      line-height: 1.35;
+      font-weight: 800;
+      overflow-wrap: break-word;
+    }
+    .rdp-institution-meta .arabic-font {
+      margin-top: 2px;
+      color: var(--rdp-text-muted, #52635c);
+      font-size: 15px;
+      line-height: 1.35;
+    }
+    .rdp-login-kicker {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: #826311;
+    }
+    .rdp-login-kicker .rdp-login-kicker-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--rdp-accent, #c9a227);
+      box-shadow: 0 0 0 4px #f7f0d9;
+      flex-shrink: 0;
+    }
+    .rdp-login-kicker-text {
+      font-size: 17px;
+      font-weight: 700;
+      line-height: 1.5;
+      letter-spacing: 0;
+    }
+    .rdp-login-heading h2 {
+      margin-top: 8px;
+      color: var(--rdp-primary, #0f4c3a);
+      font-size: clamp(22px, 2vw, 27px);
+      line-height: 1.18;
+      letter-spacing: -0.03em;
+      font-weight: 900;
+    }
+    .rdp-login-heading p {
+      margin-top: 4px;
+      color: var(--rdp-text-muted, #52635c);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    .rdp-login-error {
+      margin-top: 16px;
+      padding: 12px;
+      border-radius: 8px;
+      background: #fff1f1;
+      border: 1px solid #f1cccc;
+      color: #a12c2c;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .rdp-login-form {
+      margin-top: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .rdp-field label {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--rdp-primary, #0f4c3a);
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .rdp-input-wrap {
+      height: 48px;
+      display: flex;
+      align-items: center;
+      border: 1px solid var(--rdp-border, #e7dcc3);
+      border-radius: 8px;
+      background: var(--rdp-bg-surface, #fff);
+      transition: border-color 0.15s, box-shadow 0.15s;
+      overflow: hidden;
+    }
+    .rdp-input-wrap:focus-within {
+      border-color: var(--rdp-primary-mid, #136048);
+      box-shadow: 0 0 0 3px rgba(19, 96, 72, 0.12);
+      background: var(--rdp-bg-surface, #fff);
+    }
+    .rdp-input-icon {
+      width: 44px;
+      height: 100%;
+      flex-shrink: 0;
+      display: grid;
+      place-items: center;
+      color: var(--rdp-primary-mid, #136048);
+      border-right: 1px solid var(--rdp-border, #e7dcc3);
+    }
+    .rdp-input-icon svg {
+      width: 18px;
+      height: 18px;
+    }
+    .rdp-input-wrap input {
+      width: 100%;
+      min-width: 0;
+      height: 100%;
+      padding: 0 12px;
+      border: 0;
+      outline: 0;
+      background: transparent;
+      color: #143628;
+      font: 500 15px "Plus Jakarta Sans", system-ui, sans-serif;
+    }
+    .rdp-input-wrap input::placeholder { color: #7a8a82; }
+    .rdp-password-toggle {
+      height: 100%;
+      width: 44px;
+      flex-shrink: 0;
+      display: grid;
+      place-items: center;
+      color: var(--rdp-text-muted, #52635c);
+      border-left: 1px solid var(--rdp-border, #e7dcc3);
+    }
+    .rdp-password-toggle:hover {
+      color: var(--rdp-primary, #0f4c3a);
+      background: var(--rdp-bg-subtle, #fbf8f1);
+    }
+    .rdp-period-card {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      border: 1px solid var(--rdp-border, #e7dcc3);
+      border-radius: 12px;
+      background: var(--rdp-bg-subtle, #fbf8f1);
+    }
+    .rdp-period-icon {
+      width: 36px;
+      height: 36px;
+      display: grid;
+      place-items: center;
+      border-radius: 8px;
+      color: var(--rdp-primary, #0f4c3a);
+      background: var(--rdp-bg-canvas, #f7f3ea);
+      border: 1px solid var(--rdp-border, #e7dcc3);
+      flex-shrink: 0;
+    }
+    .rdp-period-icon svg {
+      width: 18px;
+      height: 18px;
+    }
+    .rdp-period-copy {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .rdp-period-copy > span {
+      color: var(--rdp-text-muted, #52635c);
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .rdp-period-copy strong {
+      color: var(--rdp-primary, #0f4c3a);
+      font-size: 14px;
+      font-weight: 800;
+    }
+    .rdp-period-copy .rdp-period-sep {
+      padding: 0 4px;
+      color: var(--rdp-accent-dark, #a07d18);
+      font-style: normal;
+    }
+    .rdp-period-lock {
+      margin-left: auto;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: #f5ebd1;
+      border: 1px solid var(--rdp-border, #e7dcc3);
+      color: #7a5c10;
+      white-space: nowrap;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .rdp-period-lock svg {
+      width: 12px;
+      height: 12px;
+      flex-shrink: 0;
+    }
+    .rdp-login-submit {
+      min-height: 48px;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, var(--rdp-primary-mid, #136048), var(--rdp-primary-hover, #0b3b2e));
+      color: #fff;
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      box-shadow: 0 7px 18px rgba(15, 76, 58, 0.22);
+      transition: filter 0.15s, transform 0.15s;
+    }
+    .rdp-login-submit svg {
+      width: 16px;
+      height: 16px;
+      transition: transform 0.15s;
+    }
+    .rdp-login-submit:hover {
+      filter: brightness(0.95);
+      transform: translateY(-1px);
+    }
+    .rdp-login-submit:hover svg { transform: translateX(2px); }
+    .rdp-login-submit:focus-visible,
+    .rdp-password-toggle:focus-visible,
+    .rdp-login-help-btn:focus-visible {
+      outline: 2px solid var(--rdp-accent, #c9a227);
+      outline-offset: 2px;
+    }
+    .rdp-login-submit:disabled {
+      opacity: 0.65;
+      cursor: wait;
+      transform: none;
+    }
+    .rdp-login-help {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      color: var(--rdp-text-muted, #52635c);
+      font-size: 13px;
+    }
+    .rdp-login-help-btn {
+      background: transparent;
+      border: 0;
+      padding: 4px 2px;
+      cursor: pointer;
+      color: var(--rdp-primary, #0f4c3a);
+      font: 700 13px/1.4 inherit;
+      text-decoration: none;
+    }
+    .rdp-login-help-btn:hover { text-decoration: underline; }
+    .rdp-login-divider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 16px 0 12px;
+      color: var(--rdp-accent, #c9a227);
+    }
+    .rdp-login-divider span {
+      height: 1px;
+      flex: 1;
+      background: var(--rdp-border, #e7dcc3);
+    }
+    .rdp-login-divider svg {
+      width: 14px;
+      height: 14px;
+      flex-shrink: 0;
+    }
+    .rdp-login-note {
+      color: var(--rdp-text-muted, #52635c);
+      font-size: 12px;
+      line-height: 1.65;
+    }
+    .rdp-login-copyright {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--rdp-border, #e7dcc3);
+      color: var(--rdp-text-muted, #52635c);
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .rdp-login-copyright span {
+      margin: 0 6px;
+      color: var(--rdp-accent-dark, #a07d18);
+    }
+    @media (max-width: 1050px) {
+      .rdp-login-layout { grid-template-columns: minmax(0, 1.15fr) minmax(360px, 0.85fr); }
+      .rdp-login-hero { padding: 24px; }
+      .rdp-feature-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .rdp-feature-card { min-height: 104px; }
+      .rdp-hero-footer { gap: 8px 16px; }
+    }
+    @media (max-width: 767.98px) {
+      #login-screen.rdp-login-screen { display: block; }
+      .rdp-login-layout { display: flex; flex-direction: column-reverse; min-height: 100vh; width: 100%; }
+      .rdp-login-hero { min-height: 0; width: 100%; padding: 20px 16px 24px; }
+      .rdp-hero-image { background-position: center 44%; }
+      .rdp-hero-shade {
+        background:
+          radial-gradient(ellipse 92% 64% at 25% 24%, rgba(251, 248, 241, 0.96) 0%, rgba(251, 248, 241, 0.78) 60%, rgba(251, 248, 241, 0.32) 100%),
+          linear-gradient(180deg, rgba(251, 248, 241, 0.90), rgba(251, 248, 241, 0.65) 52%, rgba(11, 59, 46, 0.82));
+      }
+      .rdp-brand-logo-full { height: 40px; }
+      .rdp-hero-pill { display: none; }
+      .rdp-hero-copy { max-width: 100%; margin-top: 16px; margin-bottom: 16px; }
+      .rdp-bismillah { font-size: 20px; margin-bottom: 4px; }
+      .rdp-eyebrow { font-size: 11px; margin-bottom: 4px; }
+      .rdp-hero-copy h1 { font-size: 26px; }
+      .rdp-hero-copy p { max-width: 100%; font-size: 13px; line-height: 1.5; margin-top: 8px; }
+      .rdp-hero-bottom { margin-top: 8px; }
+      .rdp-feature-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+      .rdp-feature-card { min-height: 0; min-width: 0; overflow-wrap: break-word; padding: 12px; gap: 6px; border-radius: 12px; }
+      .rdp-feature-icon { width: 32px; height: 32px; border-radius: 8px; }
+      .rdp-feature-icon svg { width: 20px; height: 20px; }
+      .rdp-feature-card strong { font-size: 12px; }
+      .rdp-feature-card > span:last-child { font-size: 11px; line-height: 1.4; }
+      .rdp-hero-footer { margin-top: 12px; gap: 8px 12px; font-size: 11px; }
+      .rdp-footer-version { margin-left: 0; font-size: 11px; padding: 4px 10px; }
+      .rdp-login-panel {
+        width: 100%;
+        padding: 20px 16px 24px;
+        border-left: 0;
+        border-top: 3px solid var(--rdp-primary, #0f4c3a);
+        border-bottom: 1px solid var(--rdp-border, #e7dcc3);
+      }
+      .rdp-login-panel-inner { max-width: 480px; width: 100%; }
+      .rdp-institution-header { padding: 12px; gap: 12px; margin-bottom: 16px; }
+      .rdp-institution-logo { width: 48px; height: 48px; }
+      .rdp-institution-meta strong { font-size: 12px; }
+      .rdp-input-wrap input { font-size: 16px; }
+      .rdp-period-card { flex-wrap: wrap; }
+      .rdp-login-heading h2 { font-size: 22px; }
+      .rdp-login-form { margin-top: 16px; gap: 12px; }
+    }
+    @media (max-width: 374.98px) {
+      .rdp-feature-grid { grid-template-columns: 1fr; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .rdp-login-submit, .rdp-login-submit svg, .rdp-input-wrap { transition: none !important; }
+    }
+    /* ============ END LOGIN PAGE REDESIGN ============ */
   </style>
 </head>
 <body class="bg-[#f7f3ea] text-[#0f4c3a] antialiased min-h-screen flex flex-col">
   <a href="#main-content" class="rdp-skip-link no-print">Lewati ke konten utama</a>
 
   <!-- LOGIN MODAL / OVERLAY -->
-  <div id="login-screen" role="dialog" aria-modal="true" aria-labelledby="login-modal-title" class="no-print hidden fixed inset-0 z-[70] islamic-bg flex items-center justify-center p-4 overflow-y-auto">
-    <div class="w-full max-w-4xl bg-white rounded-2xl shadow-2xl overflow-hidden grid md:grid-cols-5 my-4 ring-1 ring-[#c9a227]/40">
-      <div class="md:col-span-2 relative bg-[#0f4c3a] text-white p-7 flex flex-col justify-between overflow-hidden">
-        <div class="absolute inset-0 islamic-pattern pointer-events-none"></div>
-        <div class="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-[#c9a227] to-transparent"></div>
-        <div class="relative">
-          <div class="arabic-font text-center text-2xl text-[#d9b84a] mb-5 leading-none">بِسْمِ اللهِ الرَّحْمٰنِ الرَّحِيْمِ</div>
-          <div id="login-logo-box" class="mx-auto w-28 h-32 rounded-t-full border-2 border-[#c9a227] bg-[#fbf8f1] flex items-center justify-center p-3 pt-5 shadow-lg shadow-black/30 overflow-hidden">
-            <span class="font-extrabold text-[#0f4c3a] text-xl tracking-wide">RDP</span>
-          </div>
-          <div class="text-center mt-4">
-            <div class="text-[10px] uppercase tracking-[0.25em] text-[#d9b84a] font-semibold">Rapor Digital Pesantren</div>
-            <h2 id="login-pesantren-name" class="text-base font-bold uppercase mt-1 leading-snug">PP. WATHONIYAH ISLAMIYAH KEBARONGAN</h2>
-            <div id="login-pesantren-arab" class="arabic-font text-lg text-[#efe6cf] mt-0.5 leading-snug">معهد الوطنية الإسلامية كباروعان</div>
-          </div>
-          <div class="my-4 flex items-center gap-2 text-[#c9a227]/70">
-            <span class="flex-1 h-px bg-[#c9a227]/40"></span><span class="text-xs">✦</span><span class="flex-1 h-px bg-[#c9a227]/40"></span>
-          </div>
-          <p class="text-[#e3eee9] text-[11px] leading-relaxed text-center">
-            Aplikasi Rapor Digital Pesantren (RDP) tidak diperjual-belikan. Jika ada kendala akses, harap konfirmasi ke operator pesantren.
-          </p>
-        </div>
-        <div class="relative mt-6 pt-3 border-t border-[#c9a227]/30 text-[11px] text-[#cfe0d8] text-center">
-          RDP Versi 4.0 <span class="font-mono text-[#d9b84a]">(20261120214421)</span>
-        </div>
-      </div>
+  <div id="login-screen" role="dialog" aria-modal="true" aria-labelledby="login-modal-title" class="no-print hidden rdp-login-screen">
+    <div class="rdp-login-layout">
+      <section class="rdp-login-hero" aria-label="Informasi Rapor Digital Pesantren">
+        <div class="rdp-hero-image" aria-hidden="true"></div>
+        <div class="rdp-hero-shade" aria-hidden="true"></div>
 
-      <div class="md:col-span-3 p-7 sm:p-9 flex flex-col justify-center bg-[#fbf8f1]">
-        <div class="text-[10px] uppercase tracking-[0.25em] text-[#a07d18] font-bold">Assalamu'alaikum</div>
-        <h3 id="login-modal-title" class="text-xl font-bold text-[#0f4c3a] mt-1">Masuk ke Rapor Digital Pesantren</h3>
-        <p class="text-xs text-slate-500 mt-1 mb-5">Silahkan login menggunakan Username / NUPTK / NISN Anda</p>
-        <div id="login-error" class="hidden mb-3 px-3 py-2 rounded bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold"></div>
-        <form onsubmit="submitLogin(event)" class="space-y-3">
-          <div>
-            <label for="login-username" class="block text-xs font-semibold text-[#0f4c3a] mb-1">Username / NUPTK / NISN</label>
-            <input id="login-username" type="text" required autocomplete="username" placeholder="Masukkan Username / NUPTK / NISN" class="w-full px-3 py-2 rounded-lg border border-[#e7dcc3] bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#c9a227] focus:border-[#c9a227]" />
+        <div class="rdp-hero-top">
+          <div class="rdp-brand-lockup">
+            <img id="login-brand-logo-full" data-src="/assets/rdp-logo-full.png" alt="RDP — Rapor Digital Pesantren" class="rdp-brand-logo-full" width="248" height="84" decoding="async" />
           </div>
-          <div>
-            <label for="login-password" class="block text-xs font-semibold text-[#0f4c3a] mb-1">Password</label>
-            <div class="relative">
-              <input id="login-password" type="password" required autocomplete="current-password" placeholder="Masukkan password" class="w-full px-3 py-2 pr-10 rounded-lg border border-[#e7dcc3] bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#c9a227] focus:border-[#c9a227]" />
-              <button type="button" onclick="togglePasswordVisibility('login-password', this)" class="absolute inset-y-0 right-0 px-2.5 flex items-center text-slate-400 hover:text-[#0f4c3a] focus:outline-none" title="Tampilkan / Sembunyikan Password" aria-label="Toggle Password Visibility">
-                <svg class="w-4 h-4 eye-open" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-                <svg class="w-4 h-4 eye-closed hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/></svg>
-              </button>
+          <div class="rdp-hero-pill">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l2.1 6.4L20.5 10l-6.4 1.6L12 18l-2.1-6.4L3.5 10l6.4-1.6L12 2z"/></svg>
+            Ekosistem Akademik Pesantren
+          </div>
+        </div>
+
+        <div class="rdp-hero-copy">
+          <div class="rdp-bismillah">بِسْمِ اللهِ الرَّحْمٰنِ الرَّحِيْمِ</div>
+          <div class="rdp-eyebrow">Teknologi untuk pendidikan pesantren</div>
+          <h1>Kelola pendidikan,<br><em>mudah dan terintegrasi.</em></h1>
+          <p>Platform pengelolaan data santri, penilaian, hingga penerbitan rapor dalam satu sistem digital yang praktis.</p>
+        </div>
+
+        <div class="rdp-hero-bottom">
+          <div class="rdp-feature-grid">
+            <article class="rdp-feature-card">
+              <span class="rdp-feature-icon rdp-feature-icon--emerald" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="16.5" cy="8.5" r="3" fill="#86c5a7"/><path d="M13.5 18.5c0-2.5 2-4.2 4.5-4.2 2 0 3.5 1.1 4 2.7.2.7-.3 1.5-1 1.5h-7.5z" fill="#86c5a7"/><circle cx="9.2" cy="7.5" r="3.6" fill="#0f4c3a"/><path d="M2.5 19.2c0-3.3 2.9-5.7 6.7-5.7s6.7 2.4 6.7 5.7c0 .7-.6 1.3-1.3 1.3H3.8c-.7 0-1.3-.6-1.3-1.3z" fill="#137a52"/><circle cx="17.8" cy="4.8" r="2.1" fill="#eab326"/></svg>
+              </span>
+              <strong>Data Terpusat</strong>
+              <span>Kelola data santri, guru, kelas, dan mata pelajaran.</span>
+            </article>
+            <article class="rdp-feature-card">
+              <span class="rdp-feature-icon rdp-feature-icon--gold" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3.5" y="13.5" width="4.4" height="7" rx="1.4" fill="#f3d584"/><rect x="9.8" y="9.5" width="4.4" height="11" rx="1.4" fill="#d99b1e"/><rect x="16.1" y="5" width="4.4" height="15.5" rx="1.4" fill="#0f6d48"/><circle cx="6.2" cy="6.5" r="4.2" fill="#0f4c3a" stroke="#fff" stroke-width="1.4"/><path d="M4.4 6.6l1.2 1.2 2.5-2.5" stroke="#eab326" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </span>
+              <strong>Penilaian Terukur</strong>
+              <span>Atur bobot nilai dan KKM untuk evaluasi belajar.</span>
+            </article>
+            <article class="rdp-feature-card">
+              <span class="rdp-feature-icon rdp-feature-icon--teal" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3.5" y="2.5" width="13.5" height="17.5" rx="2.4" fill="#ffffff" stroke="#0e6d6d" stroke-width="1.6"/><path d="M6.5 6.8h7.5" stroke="#0e6d6d" stroke-width="2" stroke-linecap="round"/><path d="M6.5 10.6h6" stroke="#8cbab7" stroke-width="1.7" stroke-linecap="round"/><path d="M6.5 14h4.5" stroke="#8cbab7" stroke-width="1.7" stroke-linecap="round"/><path d="M14.5 16.5l-.8 5.2 2.8-1.4 2.8 1.4-.8-5.2" fill="#0f4c3a"/><circle cx="16.5" cy="14.2" r="4.4" fill="#eab326" stroke="#fff" stroke-width="1.4"/><path d="M16.5 12.1l.6 1.3 1.4.2-1 1 .2 1.4-1.2-.7-1.2.7.2-1.4-1-1 1.4-.2.6-1.3z" fill="#ffffff"/></svg>
+              </span>
+              <strong>Rapor &amp; Ranking</strong>
+              <span>Cetak rapor PDF dan hasil peringkat santri.</span>
+            </article>
+            <article class="rdp-feature-card">
+              <span class="rdp-feature-icon rdp-feature-icon--sage" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="4" width="14" height="14" rx="2.5" fill="#d4e8dc" stroke="#137a52" stroke-width="1.5"/><path d="M3 8.5h14" stroke="#137a52" stroke-width="1.5"/><path d="M8.5 8.5V18" stroke="#137a52" stroke-width="1.4"/><path d="M3 13h8" stroke="#87bca0" stroke-width="1.3"/><path d="M16.8 11.2l4.4 1.6v3.7c0 2.6-1.9 4.5-4.4 5.3-2.5-.8-4.4-2.7-4.4-5.3v-3.7l4.4-1.6z" fill="#0f4c3a" stroke="#fff" stroke-width="1.3" stroke-linejoin="round"/><path d="M15.1 16.3l1.2 1.2 2.3-2.4" stroke="#eab326" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </span>
+              <strong>Rekap &amp; Backup</strong>
+              <span>Ekspor ledger Excel dan cadangkan database.</span>
+            </article>
+          </div>
+
+          <div class="rdp-hero-footer">
+            <div class="rdp-footer-point">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              Akses sesuai peran pengguna
+            </div>
+            <div class="rdp-footer-point">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              Mendukung guru, wali kelas, dan santri
+            </div>
+            <div class="rdp-footer-version">RDP <span class="rdp-version-num">Versi 4.0</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="rdp-login-panel" aria-label="Form masuk akun">
+        <div class="rdp-login-panel-inner">
+          <div class="rdp-institution-header">
+            <div id="login-logo-box" class="rdp-institution-logo">
+              <img src="/assets/rdp-icon.png" alt="Logo Pesantren" class="max-w-full max-h-full object-contain" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
+              <svg class="rdp-brand-fallback" style="display:none;width:100%;height:100%;" viewBox="0 0 36 36" fill="none" aria-hidden="true"><rect x="2" y="2" width="32" height="32" rx="8" fill="#e8f5ee"/><path d="M18 9.5c-3.8 0-7.2 1.1-9.2 2.4v12.8c2.2-1.1 5.4-1.8 9.2-1.8s7 .7 9.2 1.8V11.9c-2-1.3-5.4-2.4-9.2-2.4z" stroke="#0f4c3a" stroke-width="2" stroke-linejoin="round" fill="#fff"/><path d="M18 9.5v13.4" stroke="#0f4c3a" stroke-width="1.8" stroke-linecap="round"/><path d="M25.5 7.5a3.2 3.2 0 0 0 0 5.5 2.7 2.7 0 1 1 0-5.5z" fill="#c9a227"/></svg>
+            </div>
+            <div class="rdp-institution-meta">
+              <div class="rdp-institution-label">Lembaga Pesantren</div>
+              <strong id="login-pesantren-name">PP. WATHONIYAH ISLAMIYAH KEBARONGAN</strong>
+              <div id="login-pesantren-arab" class="arabic-font">معهد الوطنية الإسلامية كباروعان</div>
             </div>
           </div>
-          <div id="login-period-banner" class="rounded-xl border border-[#e7dcc3] bg-white px-3.5 py-2.5 flex flex-wrap items-center justify-between gap-2">
-            <div class="flex items-center gap-2 min-w-0">
-              <span class="w-7 h-7 rounded-lg bg-[#f7f3ea] border border-[#e7dcc3] text-[#0f4c3a] flex items-center justify-center flex-shrink-0" aria-hidden="true">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-              </span>
-              <div class="min-w-0">
-                <div class="text-[11px] font-semibold text-slate-500 leading-none">Periode Aktif</div>
-                <div class="text-xs font-bold text-[#0f4c3a] mt-0.5 truncate">
-                  Semester <span id="login-period-semester">Ganjil</span> &bull; <span id="login-period-tahun">2026/2027</span>
-                </div>
+
+          <div class="rdp-login-heading">
+            <div class="rdp-login-kicker"><span class="rdp-login-kicker-dot" aria-hidden="true"></span><span class="arabic-font rdp-login-kicker-text" lang="ar" dir="rtl">السَّلَامُ عَلَيْكُمْ وَرَحْمَةُ اللهِ وَبَرَكَاتُهُ</span></div>
+            <h2 id="login-modal-title">Selamat datang kembali</h2>
+            <p>Silakan masuk menggunakan akun RDP Anda.</p>
+          </div>
+
+          <div id="login-error" class="hidden rdp-login-error" role="alert"></div>
+
+          <form onsubmit="submitLogin(event)" class="rdp-login-form">
+            <div class="rdp-field">
+              <label for="login-username">Username / NUPTK / NISN</label>
+              <div class="rdp-input-wrap">
+                <span class="rdp-input-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                </span>
+                <input id="login-username" type="text" required autocomplete="username" placeholder="Masukkan username Anda" />
               </div>
             </div>
-            <span class="px-2 py-0.5 rounded-full bg-[#fbf8f1] border border-[#e7dcc3] text-[11px] font-semibold text-[#a07d18] whitespace-nowrap">Otomatis dari Pengaturan</span>
+
+            <div class="rdp-field">
+              <label for="login-password">Password</label>
+              <div class="rdp-input-wrap">
+                <span class="rdp-input-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                </span>
+                <input id="login-password" type="password" required autocomplete="current-password" placeholder="Masukkan password" />
+                <button type="button" onclick="togglePasswordVisibility('login-password', this)" class="rdp-password-toggle" title="Tampilkan / Sembunyikan Password" aria-label="Tampilkan atau sembunyikan password">
+                  <svg class="w-4 h-4 eye-open" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                  <svg class="w-4 h-4 eye-closed hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <div id="login-period-banner" class="rdp-period-card" aria-live="polite">
+              <div class="rdp-period-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              </div>
+              <div class="rdp-period-copy">
+                <span>Periode akademik aktif</span>
+                <strong>Semester <span id="login-period-semester">Ganjil</span> <span class="rdp-period-sep" aria-hidden="true">•</span> <span id="login-period-tahun">2026/2027</span></strong>
+              </div>
+              <span class="rdp-period-lock" title="Periode dikunci oleh pengaturan pesantren" aria-label="Periode terkunci">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                <span>Terkunci</span>
+              </span>
+            </div>
+
+            <button id="login-submit-btn" type="submit" class="rdp-login-submit">
+              Masuk ke RDP
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+            </button>
+            <div class="rdp-login-help">
+              <span>Kesulitan masuk?</span>
+              <button type="button" class="rdp-login-help-btn" onclick="showToast('Hubungi Operator Pesantren untuk reset password', 'info')">Hubungi Operator</button>
+            </div>
+          </form>
+
+          <div class="rdp-login-divider">
+            <span></span>
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l2.1 6.4L20.5 10l-6.4 1.6L12 18l-2.1-6.4L3.5 10l6.4-1.6L12 2z"/></svg>
+            <span></span>
           </div>
-          <div class="flex items-center justify-end text-xs pt-1">
-            <a href="#" onclick="event.preventDefault(); showToast('Hubungi Operator Pesantren untuk reset password', 'info')" class="text-[#136048] font-semibold hover:underline">Lupa Password</a>
-          </div>
-          <button id="login-submit-btn" type="submit" class="w-full py-2.5 px-4 rounded-lg bg-[#0f4c3a] hover:bg-[#0b3b2e] text-[#f3e3b0] text-xs font-bold tracking-wider uppercase transition shadow border-b-2 border-[#c9a227]">Masuk ke RDP</button>
-        </form>
-      </div>
+          <p class="rdp-login-note">Aplikasi Rapor Digital Pesantren (RDP) digunakan untuk mendukung pengelolaan akademik pesantren. Jika mengalami kendala akses, silakan hubungi operator pesantren.</p>
+          <div class="rdp-login-copyright">© Rapor Digital Pesantren <span aria-hidden="true">•</span> RDP Versi 4.0</div>
+        </div>
+      </section>
     </div>
   </div>
 
@@ -1411,11 +2095,38 @@ function showLogin() {
   syncSidebarView();
   const err = document.getElementById('login-error');
   if (err) { err.classList.add('hidden'); err.textContent = ''; }
-  document.getElementById('login-screen').classList.remove('hidden');
+  const brandImg = document.getElementById('login-brand-logo-full');
+  if (brandImg && !brandImg.getAttribute('src') && brandImg.dataset && brandImg.dataset.src) {
+    brandImg.setAttribute('src', brandImg.dataset.src);
+  }
+  const app = document.getElementById('app-wrapper');
+  if (app) {
+    app.inert = true;
+    app.setAttribute('aria-hidden', 'true');
+  }
+  const skip = document.querySelector('.rdp-skip-link');
+  if (skip) skip.setAttribute('tabindex', '-1');
+  const loginEl = document.getElementById('login-screen');
+  if (loginEl) {
+    loginEl.classList.remove('hidden');
+    loginEl.scrollTop = 0;
+  }
+  requestAnimationFrame(() => {
+    const userInput = document.getElementById('login-username');
+    if (userInput) userInput.focus();
+  });
 }
 function closeLogin() {
   resetLoginPasswordField();
-  document.getElementById('login-screen').classList.add('hidden');
+  const loginEl = document.getElementById('login-screen');
+  if (loginEl) loginEl.classList.add('hidden');
+  const app = document.getElementById('app-wrapper');
+  if (app) {
+    app.inert = false;
+    app.removeAttribute('aria-hidden');
+  }
+  const skip = document.querySelector('.rdp-skip-link');
+  if (skip) skip.removeAttribute('tabindex');
 }
 
 async function submitLogin(e) {
@@ -2648,12 +3359,16 @@ function updateLoginBranding(p) {
   if (logoBox) {
     logoBox.innerHTML = isSafeImageDataUrl(p.logoDataUrl)
       ? `<img src="${escapeHtml(p.logoDataUrl)}" alt="Logo Pesantren" class="max-w-full max-h-full object-contain" />`
-      : `<span class="font-extrabold text-[#0f4c3a] text-xl tracking-wide">RDP</span>`;
+      : `<img src="/assets/rdp-icon.png" alt="Logo Pesantren" class="max-w-full max-h-full object-contain" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" /><svg class="rdp-brand-fallback" style="display:none;width:100%;height:100%;" viewBox="0 0 36 36" fill="none" aria-hidden="true"><rect x="2" y="2" width="32" height="32" rx="8" fill="#e8f5ee"/><path d="M18 9.5c-3.8 0-7.2 1.1-9.2 2.4v12.8c2.2-1.1 5.4-1.8 9.2-1.8s7 .7 9.2 1.8V11.9c-2-1.3-5.4-2.4-9.2-2.4z" stroke="#0f4c3a" stroke-width="2" stroke-linejoin="round" fill="#fff"/><path d="M18 9.5v13.4" stroke="#0f4c3a" stroke-width="1.8" stroke-linecap="round"/><path d="M25.5 7.5a3.2 3.2 0 0 0 0 5.5 2.7 2.7 0 1 1 0-5.5z" fill="#c9a227"/></svg>`;
   }
   const nameEl = document.getElementById('login-pesantren-name');
   if (nameEl && p.nama) nameEl.textContent = p.nama;
   const arabEl = document.getElementById('login-pesantren-arab');
-  if (arabEl && p.namaArab) arabEl.textContent = p.namaArab;
+  if (arabEl && typeof p.namaArab === 'string') {
+    const arabText = p.namaArab.trim();
+    arabEl.textContent = arabText;
+    arabEl.classList.toggle('hidden', !arabText);
+  }
   const tahunSpan = document.getElementById('login-period-tahun');
   if (tahunSpan && p.tahun) tahunSpan.textContent = p.tahun;
   const semSpan = document.getElementById('login-period-semester');
@@ -9296,6 +10011,13 @@ document.addEventListener('keydown', (ev) => {
       trapFocusInOverlay(assignDlg, ev);
       return;
     }
+  }
+  const loginDlg = document.getElementById('login-screen');
+  if (loginDlg && !loginDlg.classList.contains('hidden')) {
+    if (ev.key === 'Tab') {
+      trapFocusInOverlay(loginDlg, ev);
+    }
+    return;
   }
   if (ev.key !== 'Escape') return;
   if (state.sidebarOpenMobile) {

@@ -680,6 +680,21 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    if (method === 'GET' && pathname === '/assets/app.css') {
+      const css = getCachedVendorFile('appCss', path.join(__dirname, 'public', 'assets', 'app.css'));
+      if (!css) return sendJson(res, 404, { error: 'Asset not found' });
+      sendCompressed(req, res, 200, { ...SECURITY_HEADERS, 'Content-Type': 'text/css; charset=utf-8', 'Cache-Control': STATIC_CACHE_CONTROL }, css);
+      return;
+    }
+
+    if (method === 'GET' && /^\/js\/[a-z0-9-]+\.js$/.test(pathname)) {
+      const fileName = pathname.slice(4);
+      const js = getCachedVendorFile('js:' + fileName, path.join(__dirname, 'public', 'js', fileName));
+      if (!js) return sendJson(res, 404, { error: 'Asset not found' });
+      sendCompressed(req, res, 200, { ...SECURITY_HEADERS, 'Content-Type': 'application/javascript; charset=utf-8', 'Cache-Control': STATIC_CACHE_CONTROL }, js);
+      return;
+    }
+
     if (method === 'GET' && pathname === '/assets/rdp-sidebar-logo.jpg') {
       const img = getCachedVendorFile('sidebarLogo', path.join(__dirname, 'public', 'assets', 'rdp-sidebar-logo.jpg'));
       if (!img) return sendJson(res, 404, { error: 'Asset not found' });

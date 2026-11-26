@@ -910,6 +910,16 @@ async function handleRequest(request, env) {
       return serveStaticAsset(assetResp, 'text/css; charset=utf-8', STATIC_ASSET_CACHE);
     }
 
+    if (method === 'GET' && pathname === '/assets/app.css') {
+      const assetResp = await env.ASSETS.fetch(request);
+      return serveStaticAsset(assetResp, 'text/css; charset=utf-8', STATIC_ASSET_CACHE);
+    }
+
+    if (method === 'GET' && /^\/js\/[a-z0-9-]+\.js$/.test(pathname)) {
+      const assetResp = await env.ASSETS.fetch(request);
+      return serveStaticAsset(assetResp, 'application/javascript; charset=utf-8', STATIC_ASSET_CACHE);
+    }
+
     if (method === 'GET' && pathname === '/assets/rdp-sidebar-logo.jpg') {
       const assetResp = await env.ASSETS.fetch(request);
       return serveStaticAsset(assetResp, 'image/jpeg', STATIC_ASSET_CACHE);

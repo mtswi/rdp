@@ -753,19 +753,36 @@ const server = http.createServer(async (req, res) => {
         const usedSubIds = new Set();
         for (const st of classPool) {
           for (const [k, v] of Object.entries(st.scores || {})) {
-            if (v !== undefined && v !== null && v !== '') usedSubIds.add(Number(k));
+            if (v !== undefined && v !== null && v !== '' && Number.isFinite(Number(v))) usedSubIds.add(Number(k));
           }
         }
         const usedMapelNames = new Set(
           myStudent ? targetAssignments.filter(a => a.kode === myStudent.kelas).map(a => a.mapel) : []
         );
         const effectiveSubjects = targetSubjects.filter(sub => sub.active !== false || usedSubIds.has(sub.id) || usedMapelNames.has(sub.namaArab));
+        const classScoredSubs = effectiveSubjects.filter(sub => usedSubIds.has(sub.id));
+        const classScoredSubjectIds = classScoredSubs.map(sub => sub.id);
+        const classScoredCount = classScoredSubs.length;
+        const classScoredJam = classScoredSubs.reduce((acc, sub) => acc + (Number(sub.jam) || 0), 0);
+        const classUmumSubs = classScoredSubs.filter(sub => sub.kelompok !== 'syari');
+        const classSyariSubs = classScoredSubs.filter(sub => sub.kelompok === 'syari');
+        const classScoredOverride = {
+          classScoredSubjectIds,
+          classScoredCount,
+          classScoredJam,
+          classUmumScoredCount: classUmumSubs.length,
+          classUmumScoredJam: classUmumSubs.reduce((acc, sub) => acc + (Number(sub.jam) || 0), 0),
+          classSyariScoredCount: classSyariSubs.length,
+          classSyariScoredJam: classSyariSubs.reduce((acc, sub) => acc + (Number(sub.jam) || 0), 0)
+        };
         let scopedStudents = [];
         if (myStudent) {
           const totals = classPool.map(s => {
             let sum = 0;
             let syariSum = 0;
             let scoredJam = 0;
+            let scoredCount = 0;
+            let rawSum = 0;
             for (const sub of effectiveSubjects) {
               const sc = s.scores[sub.id];
               const scNum = Number(sc);
@@ -774,10 +791,14 @@ const server = http.createServer(async (req, res) => {
                 const weighted = scNum * jam;
                 sum += weighted;
                 scoredJam += jam;
+                scoredCount++;
+                rawSum += scNum;
                 if (sub.kelompok === 'syari') syariSum += weighted;
               }
             }
-            const avg = scoredJam > 0 ? sum / scoredJam : 0;
+            const denomJam = classScoredJam > 0 ? classScoredJam : scoredJam;
+            const denomCount = classScoredCount > 0 ? classScoredCount : scoredCount;
+            const avg = scoredCount > 0 ? (denomJam > 0 ? sum / denomJam : (denomCount > 0 ? rawSum / denomCount : 0)) : 0;
             return { id: s.id, total: sum, syari: syariSum, avg };
           }).sort((a, b) => (b.total - a.total) || (b.syari - a.syari) || (b.avg - a.avg));
           const meEntry = totals.find(x => x.id === myStudent.id);
@@ -786,6 +807,7 @@ const server = http.createServer(async (req, res) => {
             : 1;
           scopedStudents = [{
             ...myStudent,
+            classScoredOverride,
             rankOverride: { rank: rank || 1, totalStudents: classPool.length },
             ...(archiveNotice ? { archiveNotice } : {})
           }];

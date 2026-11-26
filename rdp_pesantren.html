@@ -1591,11 +1591,64 @@ function getPredikatArab(nilai) {
   return tiers[3].label;
 }
 
-function computeStudentTotals(student) {
-  let totalJam = 0, scoredJam = 0, scoredCount = 0, totalWeighted = 0, syariWeighted = 0, umumWeighted = 0, missingCount = 0;
+function getClassScoredContext(kelasKode) {
+  if (!kelasKode) return null;
+  const effSubjects = getEffectiveSubjects(kelasKode);
+  const classStudents = (state.students || []).filter(s => s.kelas === kelasKode);
+  const scoredSubIds = new Set();
+  for (const st of classStudents) {
+    if (!st || !st.scores) continue;
+    for (const sub of effSubjects) {
+      if (hasScoreValue(st.scores[sub.id])) scoredSubIds.add(sub.id);
+    }
+  }
+  const classScoredSubjects = [];
+  const classScoredSubjectIds = [];
+  let classScoredJam = 0;
+  let classUmumScoredCount = 0;
+  let classUmumScoredJam = 0;
+  let classSyariScoredCount = 0;
+  let classSyariScoredJam = 0;
+  for (const sub of effSubjects) {
+    if (!scoredSubIds.has(sub.id)) continue;
+    const jam = Number(sub.jam) || 0;
+    classScoredSubjectIds.push(sub.id);
+    classScoredSubjects.push({
+      id: sub.id,
+      namaId: sub.namaId,
+      namaArab: sub.namaArab,
+      kelompok: sub.kelompok,
+      jam
+    });
+    classScoredJam += jam;
+    if (sub.kelompok === 'syari') {
+      classSyariScoredCount++;
+      classSyariScoredJam += jam;
+    } else {
+      classUmumScoredCount++;
+      classUmumScoredJam += jam;
+    }
+  }
+  return {
+    classScoredSubjectIds,
+    classScoredSubjects,
+    classScoredCount: classScoredSubjectIds.length,
+    classScoredJam,
+    classUmumScoredCount,
+    classUmumScoredJam,
+    classSyariScoredCount,
+    classSyariScoredJam
+  };
+}
+
+function computeStudentTotals(student, classCtxOverride = null) {
+  const effSubjects = getEffectiveSubjects(student && student.kelas ? student.kelas : null);
+  const classCtx = classCtxOverride || (student && student.classScoredOverride) || (student && student.kelas ? getClassScoredContext(student.kelas) : null);
+  let totalJam = 0, scoredJam = 0, scoredCount = 0, totalWeighted = 0, totalRawSum = 0, syariWeighted = 0, umumWeighted = 0, missingCount = 0;
   let umumScoredJam = 0, umumScoredCount = 0, umumRawSum = 0;
   let syariScoredJam = 0, syariScoredCount = 0, syariRawSum = 0;
-  getEffectiveSubjects(student && student.kelas ? student.kelas : null).forEach(sub => {
+  const studentScoredIds = new Set();
+  effSubjects.forEach(sub => {
     const jam = Number(sub.jam) || 0;
     totalJam += jam;
     const raw = student && student.scores ? student.scores[sub.id] : undefined;
@@ -1605,6 +1658,8 @@ function computeStudentTotals(student) {
       scoredJam += jam;
       scoredCount++;
       totalWeighted += weighted;
+      totalRawSum += numRaw;
+      studentScoredIds.add(sub.id);
       if (sub.kelompok === 'syari') {
         syariWeighted += weighted;
         syariScoredJam += jam;
@@ -1620,12 +1675,52 @@ function computeStudentTotals(student) {
       missingCount++;
     }
   });
-  const avg = scoredJam > 0 ? (totalWeighted / scoredJam) : 0;
-  const avgUmum = umumScoredJam > 0 ? (umumWeighted / umumScoredJam) : (umumScoredCount > 0 ? (umumRawSum / umumScoredCount) : null);
-  const avgSyari = syariScoredJam > 0 ? (syariWeighted / syariScoredJam) : (syariScoredCount > 0 ? (syariRawSum / syariScoredCount) : null);
+  const hasAnyScore = scoredCount > 0;
+  const classScoredCount = classCtx ? (Number(classCtx.classScoredCount) || 0) : scoredCount;
+  const classScoredJam = classCtx ? (Number(classCtx.classScoredJam) || 0) : scoredJam;
+  const denomTotalJam = classScoredJam > 0 ? classScoredJam : scoredJam;
+  const denomTotalCount = classScoredCount > 0 ? classScoredCount : scoredCount;
+  const avg = hasAnyScore
+    ? (denomTotalJam > 0 ? (totalWeighted / denomTotalJam) : (denomTotalCount > 0 ? (totalRawSum / denomTotalCount) : 0))
+    : 0;
+
+  const classUmumScoredCount = classCtx ? (Number(classCtx.classUmumScoredCount) || 0) : umumScoredCount;
+  const classUmumScoredJam = classCtx ? (Number(classCtx.classUmumScoredJam) || 0) : umumScoredJam;
+  const hasUmumScore = hasAnyScore && (umumScoredCount > 0 || classUmumScoredCount > 0);
+  const denomUmumJam = classUmumScoredJam > 0 ? classUmumScoredJam : umumScoredJam;
+  const denomUmumCount = classUmumScoredCount > 0 ? classUmumScoredCount : umumScoredCount;
+  const avgUmum = hasUmumScore
+    ? (denomUmumJam > 0 ? (umumWeighted / denomUmumJam) : (denomUmumCount > 0 ? (umumRawSum / denomUmumCount) : null))
+    : null;
+
+  const classSyariScoredCount = classCtx ? (Number(classCtx.classSyariScoredCount) || 0) : syariScoredCount;
+  const classSyariScoredJam = classCtx ? (Number(classCtx.classSyariScoredJam) || 0) : syariScoredJam;
+  const hasSyariScore = hasAnyScore && (syariScoredCount > 0 || classSyariScoredCount > 0);
+  const denomSyariJam = classSyariScoredJam > 0 ? classSyariScoredJam : syariScoredJam;
+  const denomSyariCount = classSyariScoredCount > 0 ? classSyariScoredCount : syariScoredCount;
+  const avgSyari = hasSyariScore
+    ? (denomSyariJam > 0 ? (syariWeighted / denomSyariJam) : (denomSyariCount > 0 ? (syariRawSum / denomSyariCount) : null))
+    : null;
+
+  let missingFromClassCount = 0;
+  let missingSubjectNames = [];
+  if (classCtx && Array.isArray(classCtx.classScoredSubjects)) {
+    const missingClassSubjects = classCtx.classScoredSubjects.filter(sub => !studentScoredIds.has(sub.id));
+    missingFromClassCount = missingClassSubjects.length;
+    missingSubjectNames = missingClassSubjects.map(sub => sub.namaId || sub.namaArab);
+  } else if (classCtx && Array.isArray(classCtx.classScoredSubjectIds)) {
+    const ctxIdSet = new Set(classCtx.classScoredSubjectIds.map(Number));
+    const missingClassSubjects = effSubjects.filter(sub => ctxIdSet.has(Number(sub.id)) && !studentScoredIds.has(sub.id));
+    missingFromClassCount = missingClassSubjects.length;
+    missingSubjectNames = missingClassSubjects.map(sub => sub.namaId || sub.namaArab);
+  }
+
   return {
     totalJam,
     scoredJam,
+    scoredCount,
+    classScoredCount,
+    classScoredJam,
     totalWeighted,
     syariWeighted,
     umumWeighted,
@@ -1635,9 +1730,11 @@ function computeStudentTotals(student) {
     avgUmum,
     avgSyari,
     missingCount,
-    hasAnyScore: scoredCount > 0,
-    hasUmumScore: umumScoredCount > 0,
-    hasSyariScore: syariScoredCount > 0
+    missingFromClassCount,
+    missingSubjectNames,
+    hasAnyScore,
+    hasUmumScore,
+    hasSyariScore
   };
 }
 
@@ -1647,8 +1744,9 @@ function getStudentRank(studentId) {
     return target.rankOverride;
   }
   const pool = target ? state.students.filter(s => s.kelas === target.kelas) : state.students;
+  const classCtx = target && target.kelas ? getClassScoredContext(target.kelas) : null;
   const list = pool.map(s => {
-    const t = computeStudentTotals(s);
+    const t = computeStudentTotals(s, classCtx);
     return { id: s.id, total: t.totalWeighted, syari: t.syariWeighted, avg: t.avg };
   });
   // Urutkan berdasarkan Total Terbobot, lalu Mapel Agama (syari), lalu rata-rata
@@ -6265,12 +6363,13 @@ function printAllRapor() {
 
 // ===================== CETAK RANKING (SORTABLE) =====================
 const RANKING_COLUMNS = [
-  { key: 'no', label: 'No', width: '7%', align: 'center' },
-  { key: 'nama', label: 'Nama', width: '37%', align: 'left' },
-  { key: 'avgUmum', label: 'Rata-rata Umum', width: '15%', align: 'center' },
-  { key: 'avgSyari', label: "Rata-rata Ilmu Syar'i", width: '17%', align: 'center' },
-  { key: 'avg', label: 'Rata-rata', width: '14%', align: 'center' },
-  { key: 'rank', label: 'Rank', width: '10%', align: 'center' }
+  { key: 'no', label: 'No', width: '6%', align: 'center' },
+  { key: 'nama', label: 'Nama', width: '33%', align: 'left' },
+  { key: 'avgUmum', label: 'Rata-rata Umum', width: '12%', align: 'center' },
+  { key: 'avgSyari', label: "Rata-rata Ilmu Syar'i", width: '14%', align: 'center' },
+  { key: 'totalWeighted', label: 'Total Terbobot', width: '13%', align: 'center' },
+  { key: 'avg', label: 'Rata-rata', width: '13%', align: 'center' },
+  { key: 'rank', label: 'Rank', width: '9%', align: 'center' }
 ];
 
 function switchRaporSubTab(tab) {
@@ -6278,11 +6377,11 @@ function switchRaporSubTab(tab) {
 }
 
 function getDefaultRankingSortDir(colKey) {
-  return ['avgUmum', 'avgSyari', 'avg'].includes(colKey) ? 'desc' : 'asc';
+  return ['avgUmum', 'avgSyari', 'totalWeighted', 'avg'].includes(colKey) ? 'desc' : 'asc';
 }
 
 function getRankingSortLabel(sortKey, sortDir) {
-  const col = RANKING_COLUMNS.find(c => c.key === sortKey) || RANKING_COLUMNS[5];
+  const col = RANKING_COLUMNS.find(c => c.key === sortKey) || RANKING_COLUMNS.find(c => c.key === 'rank') || RANKING_COLUMNS[RANKING_COLUMNS.length - 1];
   const isDesc = sortDir === 'desc';
   if (sortKey === 'nama') return `${col.label} (${isDesc ? 'Z → A' : 'A → Z'})`;
   if (sortKey === 'rank' || sortKey === 'no') return `${col.label} (${isDesc ? 'Terakhir → Pertama' : '1 → Terakhir'})`;
@@ -6292,8 +6391,9 @@ function getRankingSortLabel(sortKey, sortDir) {
 function buildRankingRowsForClass(kelasKode) {
   if (!kelasKode) return [];
   const classStudents = (state.students || []).filter(st => st.kelas === kelasKode);
+  const classCtx = getClassScoredContext(kelasKode);
   const rows = classStudents.map(st => {
-    const t = computeStudentTotals(st);
+    const t = computeStudentTotals(st, classCtx);
     const r = getStudentRank(st.id);
     const rawRank = r && typeof r === 'object' ? r.rank : r;
     const rankNum = Number.isFinite(Number(rawRank)) ? Number(rawRank) : null;
@@ -6303,9 +6403,14 @@ function buildRankingRowsForClass(kelasKode) {
       avgUmum: t.hasUmumScore && t.avgUmum !== null ? t.avgUmum : null,
       avgSyari: t.hasSyariScore && t.avgSyari !== null ? t.avgSyari : null,
       avg: t.hasAnyScore ? t.avg : null,
-      totalWeighted: t.totalWeighted,
+      totalWeighted: t.hasAnyScore ? t.totalWeighted : null,
       syariWeighted: t.syariWeighted,
       hasAnyScore: t.hasAnyScore,
+      scoredCount: t.scoredCount,
+      classScoredCount: t.classScoredCount,
+      classScoredJam: t.classScoredJam,
+      missingFromClassCount: t.missingFromClassCount,
+      missingSubjectsLabel: (t.missingSubjectNames || []).join(', '),
       rank: t.hasAnyScore ? rankNum : null
     };
   });
@@ -6316,7 +6421,7 @@ function buildRankingRowsForClass(kelasKode) {
       const ra = a.rank !== null ? a.rank : Number.MAX_SAFE_INTEGER;
       const rb = b.rank !== null ? b.rank : Number.MAX_SAFE_INTEGER;
       if (ra !== rb) return ra - rb;
-      if (b.totalWeighted !== a.totalWeighted) return b.totalWeighted - a.totalWeighted;
+      if ((b.totalWeighted ?? 0) !== (a.totalWeighted ?? 0)) return (b.totalWeighted ?? 0) - (a.totalWeighted ?? 0);
       if (b.syariWeighted !== a.syariWeighted) return b.syariWeighted - a.syariWeighted;
       const avga = a.avg ?? 0;
       const avgb = b.avg ?? 0;
@@ -6369,7 +6474,7 @@ function renderRankingTableHeadHtml(sortKey, sortDir, handlerName = 'sortRanking
 
 function renderRankingTableBodyHtml(sortedRows, kkm) {
   if (!sortedRows || sortedRows.length === 0) {
-    return `<tr><td colspan="6" class="text-center italic py-4 text-slate-500">Belum ada data santri di kelas ini.</td></tr>`;
+    return `<tr><td colspan="${RANKING_COLUMNS.length}" class="text-center italic py-4 text-slate-500">Belum ada data santri di kelas ini.</td></tr>`;
   }
   const fmtAvgCell = (val, boldClass = '') => {
     if (val === null || val === undefined || !Number.isFinite(Number(val))) return `<td class="text-center text-slate-400">–</td>`;
@@ -6377,16 +6482,24 @@ function renderRankingTableBodyHtml(sortedRows, kkm) {
     const belowCls = num < kkm ? ' rapor-score-below-kkm' : '';
     return `<td class="text-center tabular-nums${boldClass ? ' ' + boldClass : ''}${belowCls}">${num.toFixed(2)}</td>`;
   };
-  return sortedRows.map((r, idx) => `
-    <tr class="hover:bg-[#fbf8f1]">
-      <td class="text-center tabular-nums">${idx + 1}</td>
-      <td class="text-left font-semibold text-slate-900">${escapeHtml(r.nama)}</td>
-      ${fmtAvgCell(r.avgUmum)}
-      ${fmtAvgCell(r.avgSyari)}
-      ${fmtAvgCell(r.avg, 'font-bold')}
-      <td class="text-center font-bold tabular-nums">${r.rank !== null && r.rank !== undefined ? r.rank : '–'}</td>
-    </tr>
-  `).join('');
+  return sortedRows.map((r, idx) => {
+    const incompleteBadge = (r.classScoredCount > 0 && r.missingFromClassCount > 0)
+      ? (r.hasAnyScore
+        ? `<span class="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-800 border border-amber-300 align-middle whitespace-nowrap" title="Nilai belum terisi: ${escapeHtml(r.missingSubjectsLabel || '-')}">⚠ ${r.scoredCount}/${r.classScoredCount} mapel</span>`
+        : `<span class="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-rose-100 text-rose-800 border border-rose-300 align-middle whitespace-nowrap" title="Belum ada nilai masuk (${r.classScoredCount} mapel kelas belum terisi)">0/${r.classScoredCount} mapel</span>`)
+      : '';
+    return `
+      <tr class="hover:bg-[#fbf8f1]">
+        <td class="text-center tabular-nums">${idx + 1}</td>
+        <td class="text-left font-semibold text-slate-900">${escapeHtml(r.nama)}${incompleteBadge}</td>
+        ${fmtAvgCell(r.avgUmum)}
+        ${fmtAvgCell(r.avgSyari)}
+        <td class="text-center tabular-nums font-semibold">${r.totalWeighted !== null && r.totalWeighted !== undefined ? r.totalWeighted : '–'}</td>
+        ${fmtAvgCell(r.avg, 'font-bold')}
+        <td class="text-center font-bold tabular-nums">${r.rank !== null && r.rank !== undefined ? r.rank : '–'}</td>
+      </tr>
+    `;
+  }).join('');
 }
 
 function updateRankingPreviewDom() {
@@ -6436,6 +6549,8 @@ function renderRankingSheetHtml(kelasKode, rows, sortKey = 'rank', sortDir = 'as
   const sortedRows = sortRankingRows(rows, sortKey, sortDir);
   const theadId = isPreview ? 'ranking-preview-thead' : 'ranking-print-thead';
   const tbodyId = isPreview ? 'ranking-preview-tbody' : 'ranking-print-tbody';
+  const classScoredCount = rows && rows.length > 0 ? (Number(rows[0].classScoredCount) || 0) : 0;
+  const classScoredJam = rows && rows.length > 0 ? (Number(rows[0].classScoredJam) || 0) : 0;
 
   return `
     <div id="ranking-sheet" class="relative overflow-hidden bg-white rounded border border-slate-300 shadow-sm p-6 max-w-[210mm] mx-auto text-slate-900">
@@ -6490,6 +6605,11 @@ function renderRankingSheetHtml(kelasKode, rows, sortKey = 'rank', sortDir = 'as
             ${renderRankingTableBodyHtml(sortedRows, kkm)}
           </tbody>
         </table>
+        ${classScoredCount > 0 ? `
+          <div class="mt-2 text-[10.5px] text-slate-600 leading-snug">
+            Basis perhitungan kelas: <strong>${classScoredCount} mapel terisi (${classScoredJam} jam berbobot)</strong>. Nilai mapel yang belum terisi dihitung 0 dalam pembagi rata-rata kelas agar konsisten dengan Total Terbobot &amp; Ranking.
+          </div>
+        ` : ''}
 
         <!-- FOOTER TANGGAL & TANDA TANGAN WALI KELAS -->
         <div class="ranking-sign-block mt-6 flex justify-end text-xs">
@@ -6555,6 +6675,7 @@ async function openCetakRankingTab(autoPrint = false) {
   const sortKey = state.rankingSortKey || 'rank';
   const sortDir = state.rankingSortDir || 'asc';
   const kkm = getActiveKkm();
+  const incompleteRows = rows.filter(r => r.classScoredCount > 0 && r.missingFromClassCount > 0);
   const sheetHtml = renderRankingSheetHtml(kelasKode, rows, sortKey, sortDir, printAssets, 'sortRankingTable', false);
   const initialSortLabel = getRankingSortLabel(sortKey, sortDir);
 
@@ -6773,6 +6894,7 @@ async function openCetakRankingTab(autoPrint = false) {
     <div>
       <div class="font-bold text-[#0f4c3a]">Daftar Ranking Kelas ${escapeHtml(kelasKode)} (${rows.length} santri) • ${escapeHtml(m.nama)}</div>
       <div class="text-[11px] text-slate-500">Klik header kolom tabel untuk mengurutkan. Urutan aktif: <strong id="ranking-sort-status" class="text-[#0f4c3a]">${escapeHtml(initialSortLabel)}</strong></div>
+      ${incompleteRows.length > 0 ? `<div class="mt-1 text-[11px] text-amber-800 font-semibold">⚠ ${incompleteRows.length} santri belum memiliki nilai lengkap pada ${rows[0].classScoredCount} mapel kelas (${incompleteRows.slice(0, 3).map(r => escapeHtml(r.nama) + ' ' + r.scoredCount + '/' + r.classScoredCount).join(', ')}${incompleteRows.length > 3 ? `, +${incompleteRows.length - 3} lainnya` : ''}).</div>` : ''}
     </div>
     <div class="flex flex-wrap items-center gap-2">
       <label class="flex items-center gap-1.5 px-2.5 py-1.5 rounded border border-[#136048] bg-emerald-50 text-[#0f4c3a] font-semibold cursor-pointer" title="Perkecil jarak baris & ukuran font tabel bila perlu agar muat 1 halaman A4">
@@ -6795,6 +6917,7 @@ async function openCetakRankingTab(autoPrint = false) {
       { key: 'nama', label: 'Nama', align: 'left' },
       { key: 'avgUmum', label: 'Rata-rata Umum', align: 'center' },
       { key: 'avgSyari', label: "Rata-rata Ilmu Syar'i", align: 'center' },
+      { key: 'totalWeighted', label: 'Total Terbobot', align: 'center' },
       { key: 'avg', label: 'Rata-rata', align: 'center' },
       { key: 'rank', label: 'Rank', align: 'center' }
     ];
@@ -6804,10 +6927,10 @@ async function openCetakRankingTab(autoPrint = false) {
       });
     }
     function getDefaultDir(key) {
-      return (key === 'avgUmum' || key === 'avgSyari' || key === 'avg') ? 'desc' : 'asc';
+      return (key === 'avgUmum' || key === 'avgSyari' || key === 'totalWeighted' || key === 'avg') ? 'desc' : 'asc';
     }
     function getSortLabel(key, dir) {
-      const col = __RANKING_COLS.find(c => c.key === key) || __RANKING_COLS[5];
+      const col = __RANKING_COLS.find(c => c.key === key) || __RANKING_COLS[__RANKING_COLS.length - 1];
       const isDesc = dir === 'desc';
       if (key === 'nama') return col.label + ' (' + (isDesc ? 'Z → A' : 'A → Z') + ')';
       if (key === 'rank' || key === 'no') return col.label + ' (' + (isDesc ? 'Terakhir → Pertama' : '1 → Terakhir') + ')';
@@ -6867,11 +6990,17 @@ async function openCetakRankingTab(autoPrint = false) {
           return '<td class="' + cls + '">' + num.toFixed(2) + '</td>';
         };
         tbody.innerHTML = sorted.map(function(r, idx) {
+          const incompleteBadge = (r.classScoredCount > 0 && r.missingFromClassCount > 0)
+            ? (r.hasAnyScore
+              ? '<span class="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-800 border border-amber-300 align-middle whitespace-nowrap" title="Nilai belum terisi: ' + esc(r.missingSubjectsLabel || '-') + '">⚠ ' + r.scoredCount + '/' + r.classScoredCount + ' mapel</span>'
+              : '<span class="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-rose-100 text-rose-800 border border-rose-300 align-middle whitespace-nowrap" title="Belum ada nilai masuk (' + r.classScoredCount + ' mapel kelas belum terisi)">0/' + r.classScoredCount + ' mapel</span>')
+            : '';
           return '<tr class="hover:bg-[#fbf8f1]">' +
             '<td class="text-center tabular-nums">' + (idx + 1) + '</td>' +
-            '<td class="text-left font-semibold text-slate-900">' + esc(r.nama) + '</td>' +
+            '<td class="text-left font-semibold text-slate-900">' + esc(r.nama) + incompleteBadge + '</td>' +
             fmtCell(r.avgUmum, '') +
             fmtCell(r.avgSyari, '') +
+            '<td class="text-center tabular-nums font-semibold">' + (r.totalWeighted !== null && r.totalWeighted !== undefined ? r.totalWeighted : '–') + '</td>' +
             fmtCell(r.avg, 'font-bold') +
             '<td class="text-center font-bold tabular-nums">' + (r.rank !== null && r.rank !== undefined ? r.rank : '–') + '</td>' +
           '</tr>';
@@ -7262,6 +7391,9 @@ function renderCetakRankingPage() {
     : [];
   const sortKey = state.rankingSortKey || 'rank';
   const sortDir = state.rankingSortDir || 'asc';
+  const incompleteRows = rankingRows.filter(r => r.classScoredCount > 0 && r.missingFromClassCount > 0);
+  const classScoredCount = rankingRows.length > 0 ? (Number(rankingRows[0].classScoredCount) || 0) : 0;
+  const classScoredJam = rankingRows.length > 0 ? (Number(rankingRows[0].classScoredJam) || 0) : 0;
 
   return `
     ${renderPageHeader('Cetak Ranking Kelas', 'Urutkan peringkat perolehan nilai kelas dan cetak laporan ranking dalam format PDF.')}
@@ -7289,6 +7421,23 @@ function renderCetakRankingPage() {
           </button>
         </div>
       </div>
+      ${incompleteRows.length > 0 ? `
+        <div role="status" class="no-print mx-4 mt-4 p-3.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-950 text-xs space-y-1.5">
+          <div class="font-bold flex items-center gap-1.5">
+            <span aria-hidden="true">⚠</span>
+            <span>Peringatan Kelengkapan Nilai: ${incompleteRows.length} santri belum memiliki nilai lengkap (${classScoredCount} mapel / ${classScoredJam} jam kelas terisi)</span>
+          </div>
+          <div class="text-amber-900">
+            Pembagi rata-rata memakai total jam mapel kelas yang sudah diinput (<strong>${classScoredJam} jam</strong>) sehingga nilai kosong tidak menaikkan rata-rata semu dan tetap searah dengan Total Terbobot &amp; Ranking.
+          </div>
+          <ul class="list-disc pl-5 space-y-0.5 text-amber-900">
+            ${incompleteRows.slice(0, 5).map(r => `
+              <li><b>${escapeHtml(r.nama)}</b> (${r.scoredCount}/${r.classScoredCount} mapel${r.missingSubjectsLabel ? ` — kurang: ${escapeHtml(r.missingSubjectsLabel)}` : ''})</li>
+            `).join('')}
+            ${incompleteRows.length > 5 ? `<li class="italic">+${incompleteRows.length - 5} santri lainnya belum lengkap</li>` : ''}
+          </ul>
+        </div>
+      ` : ''}
       <div class="p-4 bg-[#f7f3ea]/60 overflow-x-auto">
         ${!state.selectedRaporKelas ? `
           <div role="status" class="rdp-card p-8 text-center text-xs text-slate-500 italic">
@@ -7347,13 +7496,16 @@ function renderRaporLokal() {
               ${classStudents.length === 0 ? `
                 <tr><td colspan="7" class="px-4 py-6 text-center text-slate-400 italic">Belum ada data santri di kelas ${escapeHtml(state.selectedRaporKelas || '-')}.</td></tr>
               ` : classStudents.map((st, idx) => {
-                const { avg, hasAnyScore } = computeStudentTotals(st);
+                const { avg, hasAnyScore, scoredCount, classScoredCount, missingFromClassCount, missingSubjectNames } = computeStudentTotals(st);
                 const { rank } = getStudentRank(st.id);
+                const incompleteBadge = (classScoredCount > 0 && missingFromClassCount > 0)
+                  ? `<span class="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold ${hasAnyScore ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-rose-100 text-rose-800 border-rose-300'} border align-middle whitespace-nowrap" title="${hasAnyScore ? `Nilai belum terisi: ${escapeHtml((missingSubjectNames || []).join(', ') || '-')}` : `Belum ada nilai masuk (${classScoredCount} mapel kelas belum terisi)`}">⚠ ${scoredCount}/${classScoredCount}</span>`
+                  : '';
                 return `
                   <tr class="hover:bg-[#fbf8f1]">
                     <td class="px-3 py-2 text-center">${idx + 1}</td>
                     <td class="px-3 py-2 font-mono text-slate-600">${escapeHtml(st.nisn)}</td>
-                    <td class="px-3 py-2 font-semibold text-slate-900">${escapeHtml(st.nama)}</td>
+                    <td class="px-3 py-2 font-semibold text-slate-900">${escapeHtml(st.nama)}${incompleteBadge}</td>
                     <td class="px-3 py-2">${(st.jk === 'Perempuan' || String(st.jk || '').toUpperCase() === 'P') ? 'P' : 'L'}</td>
                     <td class="px-3 py-2 text-center font-semibold tabular-nums">${hasAnyScore ? avg.toFixed(2) : '–'}</td>
                     <td class="px-3 py-2 text-center font-bold text-emerald-700">${hasAnyScore ? '#' + rank : '–'}</td>

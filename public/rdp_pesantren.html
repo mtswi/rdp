@@ -12,9 +12,9 @@
   <link rel="apple-touch-icon" href="/assets/rdp-icon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Noto+Naskh+Arabic:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <script src="/vendor/tailwindcss.min.js" onerror="var s=document.createElement('script');s.src='https://cdn.tailwindcss.com';document.head.appendChild(s);"></script>
-  <script src="/vendor/xlsx.full.min.js" onerror="var s=document.createElement('script');s.src='https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js';document.head.appendChild(s);"></script>
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Noto+Naskh+Arabic:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" onload="this.onload=null;this.rel='stylesheet'" />
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Noto+Naskh+Arabic:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" /></noscript>
+  <link rel="stylesheet" href="/assets/tailwind.min.css?v=1" onerror="var s=document.createElement('script');s.src='/vendor/tailwindcss.min.js';s.onerror=function(){var c=document.createElement('script');c.src='https://cdn.tailwindcss.com';document.head.appendChild(c);};document.head.appendChild(s);" />
   <style>
     @page {
       size: A4 portrait;
@@ -433,13 +433,13 @@
     <aside id="sidebar" class="no-print bg-[#0f4c3a] text-white/85 flex-shrink-0 flex flex-col border-r border-[#0b3b2e]">
       <div class="sidebar-brand-wrap min-h-[4.25rem] px-3 py-2 flex items-center justify-between gap-2 bg-white border-b-2 border-[#c9a227]/70">
         <div id="sidebar-brand-expanded" class="flex-1 min-w-0 flex flex-col items-center justify-center text-center">
-          <img src="/assets/rdp-sidebar-logo.jpg" alt="Rapor Digital Pesantren" class="h-11 w-auto max-w-full object-contain" />
+          <img src="/assets/rdp-sidebar-logo.jpg" alt="Rapor Digital Pesantren" width="360" height="121" decoding="async" fetchpriority="high" class="h-11 w-auto max-w-full object-contain" />
           <div id="sidebar-period-label" class="mt-0.5 text-[11px] font-bold text-[#0f4c3a] tracking-wide truncate max-w-full">
             Semester Ganjil • 2026/2027
           </div>
         </div>
         <button type="button" id="sidebar-logo-box" onclick="if(window.innerWidth>=768 && state.sidebarCollapsedDesktop) toggleSidebar();" aria-label="Lebarkan Sidebar" class="hidden w-9 h-9 rounded-lg bg-white items-center justify-center shadow overflow-hidden flex-shrink-0 cursor-pointer p-0.5 border border-[#e7dcc3]" title="Rapor Digital Pesantren">
-          <img src="/assets/rdp-icon.png" alt="RDP" class="w-full h-full object-contain" />
+          <img src="/assets/rdp-icon.png" alt="RDP" width="128" height="128" decoding="async" class="w-full h-full object-contain" />
         </button>
         <!-- Tombol Tutup Sidebar di Mobile -->
         <button type="button" onclick="closeMobileSidebar()" class="md:hidden p-1.5 rounded-lg text-[#0f4c3a] hover:bg-slate-100 transition flex-shrink-0" aria-label="Tutup Menu">
@@ -560,7 +560,7 @@
             <p id="rdp-modal-message" class="leading-relaxed whitespace-pre-line"></p>
             <div id="rdp-modal-input-wrap" class="hidden space-y-1.5">
               <label id="rdp-modal-input-label" for="rdp-modal-input" class="block text-xs font-semibold text-[#0f4c3a]"></label>
-              <input id="rdp-modal-input" type="text" class="w-full px-3 py-2 rounded-lg border border-[#e7dcc3] bg-white text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#c9a227] focus:border-[#c9a227]" />
+              <input id="rdp-modal-input" type="text" aria-label="Input dialog" class="w-full px-3 py-2 rounded-lg border border-[#e7dcc3] bg-white text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#c9a227] focus:border-[#c9a227]" />
               <div id="rdp-modal-error" role="alert" class="hidden text-xs font-semibold text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-2.5 py-1.5"></div>
             </div>
           </div>
@@ -871,6 +871,37 @@ function clearClientSessionData(clearDrafts = false) {
       toRemove.forEach(k => localStorage.removeItem(k));
     } catch (_) {}
   }
+}
+
+let _xlsxLoadPromise = null;
+function ensureXlsxLoaded() {
+  if (typeof XLSX !== 'undefined') return Promise.resolve(true);
+  if (_xlsxLoadPromise) return _xlsxLoadPromise;
+  _xlsxLoadPromise = new Promise((resolve) => {
+    const finish = (ok) => {
+      if (!ok) _xlsxLoadPromise = null;
+      resolve(ok && typeof XLSX !== 'undefined');
+    };
+    const loadScript = (src, onFail) => {
+      const s = document.createElement('script');
+      s.src = src;
+      s.async = true;
+      s.onload = () => finish(true);
+      s.onerror = onFail;
+      document.head.appendChild(s);
+    };
+    const primary = location.protocol !== 'file:'
+      ? '/vendor/xlsx.full.min.js'
+      : 'https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js';
+    loadScript(primary, () => {
+      if (primary.startsWith('/')) {
+        loadScript('https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js', () => finish(false));
+      } else {
+        finish(false);
+      }
+    });
+  });
+  return _xlsxLoadPromise;
 }
 
 async function apiCall(method, url, body, opts = {}) {
@@ -1738,24 +1769,40 @@ function computeStudentTotals(student, classCtxOverride = null) {
   };
 }
 
+function getClassRankMap(kelasKode) {
+  const pool = kelasKode ? (state.students || []).filter(s => s.kelas === kelasKode) : (state.students || []);
+  const classCtx = kelasKode ? getClassScoredContext(kelasKode) : null;
+  const list = pool.map(s => {
+    const totals = computeStudentTotals(s, classCtx);
+    return { id: s.id, totals };
+  });
+  // Urutkan berdasarkan Total Terbobot, lalu Mapel Agama (syari), lalu rata-rata
+  list.sort((a, b) => (b.totals.totalWeighted - a.totals.totalWeighted) || (b.totals.syariWeighted - a.totals.syariWeighted) || (b.totals.avg - a.totals.avg));
+  const byId = new Map();
+  let curRank = 1;
+  for (let i = 0; i < list.length; i++) {
+    if (i > 0) {
+      const prev = list[i - 1].totals;
+      const cur = list[i].totals;
+      const isTie = prev.totalWeighted === cur.totalWeighted
+        && prev.syariWeighted === cur.syariWeighted
+        && Math.abs(prev.avg - cur.avg) < 1e-9;
+      if (!isTie) curRank = i + 1;
+    }
+    byId.set(list[i].id, { totals: list[i].totals, rank: curRank, totalStudents: list.length });
+  }
+  return { classCtx, totalStudents: list.length, byId };
+}
+
 function getStudentRank(studentId) {
   const target = state.students.find(s => s.id === studentId);
   if (target && target.rankOverride) {
     return target.rankOverride;
   }
-  const pool = target ? state.students.filter(s => s.kelas === target.kelas) : state.students;
-  const classCtx = target && target.kelas ? getClassScoredContext(target.kelas) : null;
-  const list = pool.map(s => {
-    const t = computeStudentTotals(s, classCtx);
-    return { id: s.id, total: t.totalWeighted, syari: t.syariWeighted, avg: t.avg };
-  });
-  // Urutkan berdasarkan Total Terbobot, lalu Mapel Agama (syari), lalu rata-rata
-  list.sort((a, b) => (b.total - a.total) || (b.syari - a.syari) || (b.avg - a.avg));
-  const targetEntry = list.find(x => x.id === studentId);
-  if (!targetEntry) return { rank: 1, totalStudents: list.length };
-  // Standard competition ranking (1, 1, 3) jika total, syari, dan rata-rata sama persis
-  const rank = list.findIndex(x => x.total === targetEntry.total && x.syari === targetEntry.syari && Math.abs(x.avg - targetEntry.avg) < 1e-9) + 1;
-  return { rank: rank > 0 ? rank : 1, totalStudents: list.length };
+  const rankMap = getClassRankMap(target && target.kelas ? target.kelas : null);
+  const entry = rankMap.byId.get(studentId);
+  if (!entry) return { rank: 1, totalStudents: rankMap.totalStudents };
+  return { rank: entry.rank > 0 ? entry.rank : 1, totalStudents: entry.totalStudents };
 }
 
 function toArabicOrdinal(n) {
@@ -3512,7 +3559,8 @@ async function deleteTeacher(id) {
   showToast('Data guru & akun login dihapus');
 }
 
-function downloadTeacherTemplate() {
+async function downloadTeacherTemplate() {
+  await ensureXlsxLoaded();
   if (typeof XLSX === 'undefined') {
     showToast('Library Excel (XLSX) belum termuat.');
     return;
@@ -3531,12 +3579,14 @@ function downloadTeacherTemplate() {
   showToast('Template Guru (.xlsx) diunduh!');
 }
 
-function handleTeacherUpload(e) {
-  const file = e.target.files[0];
+async function handleTeacherUpload(e) {
+  const inputEl = e.target;
+  const file = inputEl && inputEl.files && inputEl.files[0];
+  if (inputEl) inputEl.value = '';
   if (!file) return;
-  if (file.size > 10 * 1024 * 1024) { e.target.value = ''; showToast('Ukuran file maksimal 10 MB'); return; }
+  if (file.size > 10 * 1024 * 1024) { showToast('Ukuran file maksimal 10 MB'); return; }
+  await ensureXlsxLoaded();
   if (typeof XLSX === 'undefined') {
-    e.target.value = '';
     showToast('Library Excel (XLSX) belum termuat.');
     return;
   }
@@ -4304,7 +4354,8 @@ function renderDataSiswa() {
   `;
 }
 
-function downloadStudentTemplate() {
+async function downloadStudentTemplate() {
+  await ensureXlsxLoaded();
   if (typeof XLSX === 'undefined') {
     showToast('Library Excel (XLSX) belum termuat. Pastikan server berjalan.');
     return;
@@ -4348,15 +4399,17 @@ function downloadStudentTemplate() {
   showToast(`Template Kelas ${kelas} (.xlsx) diunduh!`);
 }
 
-function handleStudentUpload(e) {
+async function handleStudentUpload(e) {
   const kelas = state.selectedSiswaKelas;
-  const file = e.target.files[0];
-  if (!kelas) { e.target.value = ''; showToast('Pilih kelas terlebih dahulu'); return; }
+  const inputEl = e.target;
+  const file = inputEl && inputEl.files && inputEl.files[0];
+  if (inputEl) inputEl.value = '';
+  if (!kelas) { showToast('Pilih kelas terlebih dahulu'); return; }
   if (!file) return;
-  if (state._uploadingStudents) { e.target.value = ''; showToast('Upload santri sebelumnya masih diproses...'); return; }
-  if (file.size > 10 * 1024 * 1024) { e.target.value = ''; showToast('Ukuran file maksimal 10 MB'); return; }
+  if (state._uploadingStudents) { showToast('Upload santri sebelumnya masih diproses...'); return; }
+  if (file.size > 10 * 1024 * 1024) { showToast('Ukuran file maksimal 10 MB'); return; }
+  await ensureXlsxLoaded();
   if (typeof XLSX === 'undefined') {
-    e.target.value = '';
     showToast('Library Excel (XLSX) belum termuat.');
     return;
   }
@@ -5661,7 +5714,8 @@ function clearNilaiUploadReport() {
   renderPage();
 }
 
-function downloadNilaiTemplate(subId, kelasKode) {
+async function downloadNilaiTemplate(subId, kelasKode) {
+  await ensureXlsxLoaded();
   if (typeof XLSX === 'undefined') {
     showToast('Pustaka Excel (XLSX) belum siap');
     return;
@@ -5853,24 +5907,23 @@ function downloadNilaiTemplate(subId, kelasKode) {
   showToast(`Template Nilai ${kelasKode} - ${sub.namaId} berhasil diunduh`);
 }
 
-function handleNilaiUpload(event, assignId, subId, jam, kelasKode) {
-  const file = event.target.files && event.target.files[0];
+async function handleNilaiUpload(event, assignId, subId, jam, kelasKode) {
+  const inputEl = event.target;
+  const file = inputEl && inputEl.files && inputEl.files[0];
+  if (inputEl) inputEl.value = '';
   if (!file) return;
   if (file.size > 10 * 1024 * 1024) {
-    event.target.value = '';
     showToast('Ukuran file maksimal 10 MB');
     return;
   }
-  if (typeof XLSX === 'undefined') {
-    showToast('Pustaka Excel (XLSX) belum siap');
-    event.target.value = '';
-    return;
-  }
-
   const sub = state.subjects.find(s => Number(s.id) === Number(subId));
   if (!sub) {
     showToast('Mata pelajaran tidak ditemukan');
-    event.target.value = '';
+    return;
+  }
+  await ensureXlsxLoaded();
+  if (typeof XLSX === 'undefined') {
+    showToast('Pustaka Excel (XLSX) belum siap');
     return;
   }
 
@@ -6203,13 +6256,22 @@ async function openRaporInNewTab(studentsList, autoPrint = false) {
     printAssets.bakedWatermarkUrl = await bakeTextWatermarkDataUrl(m);
   }
 
-  const sheetsHtml = studentsList.map((st, idx) => renderSingleRaporSheet(st, idx === studentsList.length - 1, printAssets)).join('');
+  const rankMapByKelas = new Map();
+  const sheetsHtml = studentsList.map((st, idx) => {
+    if (!st.rankOverride && st.kelas && !rankMapByKelas.has(st.kelas)) {
+      rankMapByKelas.set(st.kelas, getClassRankMap(st.kelas));
+    }
+    const classRankMap = st.kelas ? (rankMapByKelas.get(st.kelas) || null) : null;
+    return renderSingleRaporSheet(st, idx === studentsList.length - 1, printAssets, classRankMap);
+  }).join('');
   const titleText = studentsList.length === 1
     ? `Rapor_${studentsList[0].nama}_${studentsList[0].kelas}`
     : `Rapor_Kelas_${state.selectedRaporKelas}_${studentsList.length}_Santri`;
 
   const baseOrigin = location.protocol !== 'file:' ? location.origin : '';
-  const twSrc = baseOrigin ? `${baseOrigin}/vendor/tailwindcss.min.js` : 'https://cdn.tailwindcss.com';
+  const twTag = baseOrigin
+    ? `<link rel="stylesheet" href="${baseOrigin}/assets/tailwind.min.css?v=1" onerror="var s=document.createElement('script');s.src='${baseOrigin}/vendor/tailwindcss.min.js';document.head.appendChild(s);" />`
+    : `<script src="https://cdn.tailwindcss.com"><\/script>`;
 
   const docHtml = `<!DOCTYPE html>
 <html lang="id">
@@ -6220,7 +6282,7 @@ async function openRaporInNewTab(studentsList, autoPrint = false) {
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Noto+Naskh+Arabic:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <script src="${twSrc}" onerror="var s=document.createElement('script');s.src='https://cdn.tailwindcss.com';document.head.appendChild(s);"><\/script>
+  ${twTag}
   <style>
     @page {
       size: A4 portrait;
@@ -6391,10 +6453,11 @@ function getRankingSortLabel(sortKey, sortDir) {
 function buildRankingRowsForClass(kelasKode) {
   if (!kelasKode) return [];
   const classStudents = (state.students || []).filter(st => st.kelas === kelasKode);
-  const classCtx = getClassScoredContext(kelasKode);
+  const rankMap = getClassRankMap(kelasKode);
   const rows = classStudents.map(st => {
-    const t = computeStudentTotals(st, classCtx);
-    const r = getStudentRank(st.id);
+    const entry = !st.rankOverride ? rankMap.byId.get(st.id) : null;
+    const t = entry ? entry.totals : computeStudentTotals(st, rankMap.classCtx);
+    const r = st.rankOverride || (entry ? { rank: entry.rank, totalStudents: entry.totalStudents } : getStudentRank(st.id));
     const rawRank = r && typeof r === 'object' ? r.rank : r;
     const rankNum = Number.isFinite(Number(rawRank)) ? Number(rawRank) : null;
     return {
@@ -6686,7 +6749,9 @@ async function openCetakRankingTab(autoPrint = false) {
     .replace(/\u2029/g, '\\u2029');
 
   const baseOrigin = location.protocol !== 'file:' ? location.origin : '';
-  const twSrc = baseOrigin ? `${baseOrigin}/vendor/tailwindcss.min.js` : 'https://cdn.tailwindcss.com';
+  const twTag = baseOrigin
+    ? `<link rel="stylesheet" href="${baseOrigin}/assets/tailwind.min.css?v=1" onerror="var s=document.createElement('script');s.src='${baseOrigin}/vendor/tailwindcss.min.js';document.head.appendChild(s);" />`
+    : `<script src="https://cdn.tailwindcss.com"><\/script>`;
   const safeDocTitle = `Ranking_Kelas_${String(kelasKode).replace(/\s+/g, '_')}_${String(m.tahun || '').replace('/', '_')}`;
 
   const docHtml = `<!DOCTYPE html>
@@ -6698,7 +6763,7 @@ async function openCetakRankingTab(autoPrint = false) {
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Noto+Naskh+Arabic:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <script src="${twSrc}" onerror="var s=document.createElement('script');s.src='https://cdn.tailwindcss.com';document.head.appendChild(s);"><\/script>
+  ${twTag}
   <style>
     @page {
       size: A4 portrait;
@@ -7158,7 +7223,7 @@ function renderWatermarkOverlay(m, scale = 1, bakedWatermarkUrl = null) {
 }
 
 
-function renderSingleRaporSheet(s, isLastPage, printAssets = null) {
+function renderSingleRaporSheet(s, isLastPage, printAssets = null, classRankMap = null) {
   const m = state.pesantren;
   const logoSrc = (printAssets && isSafeImageDataUrl(printAssets.logoDataUrl))
     ? printAssets.logoDataUrl
@@ -7167,8 +7232,9 @@ function renderSingleRaporSheet(s, isLastPage, printAssets = null) {
   const effSubjects = getEffectiveSubjects(s && s.kelas ? s.kelas : null);
   const umum = effSubjects.filter(x => x.kelompok === 'umum');
   const syari = effSubjects.filter(x => x.kelompok === 'syari');
-  const { totalWeighted, avg, hasAnyScore } = computeStudentTotals(s);
-  const { rank, totalStudents } = getStudentRank(s.id);
+  const rankEntry = (classRankMap && !s.rankOverride) ? classRankMap.byId.get(s.id) : null;
+  const { totalWeighted, avg, hasAnyScore } = rankEntry ? rankEntry.totals : computeStudentTotals(s);
+  const { rank, totalStudents } = s.rankOverride || (rankEntry ? { rank: rankEntry.rank, totalStudents: rankEntry.totalStudents } : getStudentRank(s.id));
   const clsObj = state.classes.find(c => c.kode === s.kelas);
   const wali = (clsObj && clsObj.waliId) ? state.teachers.find(t => t.id === clsObj.waliId) : null;
   const kkm = Number.isFinite(Number(state.bobot && state.bobot.kkm)) ? Number(state.bobot.kkm) : 75;
@@ -7458,6 +7524,7 @@ function renderRaporLokal() {
   const classStudents = state.selectedRaporKelas
     ? state.students.filter(st => st.kelas === state.selectedRaporKelas)
     : [];
+  const classRankMap = state.selectedRaporKelas ? getClassRankMap(state.selectedRaporKelas) : null;
 
   return `
     ${renderPageHeader('Cetak Rapor Lokal (PDF)', 'Pratinjau dan cetak rapor Bahasa Arab (صحيفة الدرجات) per santri maupun seluruh kelas.')}
@@ -7496,8 +7563,9 @@ function renderRaporLokal() {
               ${classStudents.length === 0 ? `
                 <tr><td colspan="7" class="px-4 py-6 text-center text-slate-400 italic">Belum ada data santri di kelas ${escapeHtml(state.selectedRaporKelas || '-')}.</td></tr>
               ` : classStudents.map((st, idx) => {
-                const { avg, hasAnyScore, scoredCount, classScoredCount, missingFromClassCount, missingSubjectNames } = computeStudentTotals(st);
-                const { rank } = getStudentRank(st.id);
+                const entry = classRankMap && !st.rankOverride ? classRankMap.byId.get(st.id) : null;
+                const { avg, hasAnyScore, scoredCount, classScoredCount, missingFromClassCount, missingSubjectNames } = entry ? entry.totals : computeStudentTotals(st);
+                const { rank } = st.rankOverride || (entry ? { rank: entry.rank, totalStudents: entry.totalStudents } : getStudentRank(st.id));
                 const incompleteBadge = (classScoredCount > 0 && missingFromClassCount > 0)
                   ? `<span class="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold ${hasAnyScore ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-rose-100 text-rose-800 border-rose-300'} border align-middle whitespace-nowrap" title="${hasAnyScore ? `Nilai belum terisi: ${escapeHtml((missingSubjectNames || []).join(', ') || '-')}` : `Belum ada nilai masuk (${classScoredCount} mapel kelas belum terisi)`}">⚠ ${scoredCount}/${classScoredCount}</span>`
                   : '';
@@ -7540,6 +7608,7 @@ function renderLeggerPage() {
   const classStudents = state.selectedRaporKelas
     ? state.students.filter(st => st.kelas === state.selectedRaporKelas)
     : [];
+  const classRankMap = state.selectedRaporKelas ? getClassRankMap(state.selectedRaporKelas) : null;
   const previewSubs = getEffectiveSubjects(state.selectedRaporKelas || null).slice(0, 6);
 
   return `
@@ -7606,8 +7675,9 @@ function renderLeggerPage() {
             ${classStudents.length === 0 ? `
               <tr><td colspan="${6 + previewSubs.length}" class="px-4 py-6 text-center text-slate-400 italic">Belum ada data santri di kelas ${escapeHtml(state.selectedRaporKelas || '-')}.</td></tr>
             ` : classStudents.map((st, i) => {
-              const t = computeStudentTotals(st);
-              const r = getStudentRank(st.id);
+              const entry = classRankMap && !st.rankOverride ? classRankMap.byId.get(st.id) : null;
+              const t = entry ? entry.totals : computeStudentTotals(st);
+              const r = st.rankOverride || (entry ? { rank: entry.rank, totalStudents: entry.totalStudents } : getStudentRank(st.id));
               return `
                 <tr class="hover:bg-[#fbf8f1]">
                   <td class="px-2 py-2 border-r border-[#e7dcc3] text-center">${i + 1}</td>
@@ -7631,7 +7701,7 @@ function renderLeggerPage() {
 }
 
 
-function exportLeggerExcel(scope = 'kelas') {
+async function exportLeggerExcel(scope = 'kelas') {
   const validClassCodes = new Set(state.classes.map(c => c.kode));
   let targetStudents = state.students.filter(st => validClassCodes.has(st.kelas));
   let scopeLabel = 'Semua_Kelas';
@@ -7684,6 +7754,12 @@ function exportLeggerExcel(scope = 'kelas') {
 
   const tahunSafe = String(state.pesantren.tahun || '2026_2027').replace(/[^0-9A-Za-z]/g, '_');
   const semSafe = String(state.pesantren.semester || 'Ganjil').replace(/[^0-9A-Za-z]/g, '_');
+  const rankMapCache = new Map();
+  const getCachedClassRankMap = (kelasKode) => {
+    if (!rankMapCache.has(kelasKode)) rankMapCache.set(kelasKode, getClassRankMap(kelasKode));
+    return rankMapCache.get(kelasKode);
+  };
+  await ensureXlsxLoaded();
   if (typeof XLSX !== 'undefined') {
     const headers = [
       'No', 'NIS', 'NISN', 'Nama Santri', 'Kelas',
@@ -7696,8 +7772,9 @@ function exportLeggerExcel(scope = 'kelas') {
       [],
       headers,
       ...targetStudents.map((st, i) => {
-        const t = computeStudentTotals(st);
-        const r = getStudentRank(st.id);
+        const entry = !st.rankOverride ? getCachedClassRankMap(st.kelas).byId.get(st.id) : null;
+        const t = entry ? entry.totals : computeStudentTotals(st);
+        const r = st.rankOverride || (entry ? { rank: entry.rank, totalStudents: entry.totalStudents } : getStudentRank(st.id));
         return [
           i + 1,
           sanitizeExcelCell(String(st.nis || '')),
@@ -7724,8 +7801,9 @@ function exportLeggerExcel(scope = 'kelas') {
 
   const thSubjects = effSubjects.map(sub => `<th>${escapeHtml(sanitizeExcelCell(sub.namaArab))} (${sub.jam}j)</th>`).join('');
   const rows = targetStudents.map((st, i) => {
-    const t = computeStudentTotals(st);
-    const r = getStudentRank(st.id);
+    const entry = !st.rankOverride ? getCachedClassRankMap(st.kelas).byId.get(st.id) : null;
+    const t = entry ? entry.totals : computeStudentTotals(st);
+    const r = st.rankOverride || (entry ? { rank: entry.rank, totalStudents: entry.totalStudents } : getStudentRank(st.id));
     const tds = effSubjects.map(sub => {
       const raw = st.scores ? st.scores[sub.id] : undefined;
       return `<td>${hasScoreValue(raw) ? Number(raw) : '–'}</td>`;
@@ -7946,7 +8024,9 @@ function openLampiranSkKejuaraanTab(autoPrint = false) {
   `;
 
   const baseOrigin = location.protocol !== 'file:' ? location.origin : '';
-  const twSrc = baseOrigin ? `${baseOrigin}/vendor/tailwindcss.min.js` : 'https://cdn.tailwindcss.com';
+  const twTag = baseOrigin
+    ? `<link rel="stylesheet" href="${baseOrigin}/assets/tailwind.min.css?v=1" onerror="var s=document.createElement('script');s.src='${baseOrigin}/vendor/tailwindcss.min.js';document.head.appendChild(s);" />`
+    : `<script src="https://cdn.tailwindcss.com"><\/script>`;
 
   const docHtml = `<!DOCTYPE html>
 <html lang="id">
@@ -7957,7 +8037,7 @@ function openLampiranSkKejuaraanTab(autoPrint = false) {
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Noto+Naskh+Arabic:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <script src="${twSrc}" onerror="var s=document.createElement('script');s.src='https://cdn.tailwindcss.com';document.head.appendChild(s);"><\/script>
+  ${twTag}
   <style>
     @page {
       size: A4 portrait;
@@ -8144,7 +8224,8 @@ function renderKejuaraanPage() {
 }
 
 
-function exportKejuaraanExcel() {
+async function exportKejuaraanExcel() {
+  await ensureXlsxLoaded();
   if (typeof XLSX === 'undefined') {
     showToast('Library Excel (XLSX) belum termuat.');
     return;
@@ -9099,23 +9180,9 @@ function applyAllLocalScoreDrafts() {
   }
 }
 
-async function refreshStateFromServer(preserveNav = true, preserveScoreFocus = false) {
-  const seq = ++_stateFetchSeq;
-  const useOmitMedia = Boolean(state._mediaStamp);
-  let remote = await apiCall('GET', useOmitMedia ? '/api/state?omitMedia=1' : '/api/state');
-  if (seq !== _stateFetchSeq || !state.authUser) return false;
-  if (!remote) return false;
-  if (remote.pesantren && remote.pesantren.mediaOmitted) {
-    if (remote.pesantren.mediaStamp !== state._mediaStamp) {
-      remote = await apiCall('GET', '/api/state');
-      if (seq !== _stateFetchSeq || !state.authUser) return false;
-      if (!remote) return false;
-      state._mediaStamp = (remote.pesantren && remote.pesantren.mediaStamp) || computeLocalMediaStamp(remote.pesantren);
-    } else {
-      remote.pesantren.logoDataUrl = (state.pesantren && state.pesantren.logoDataUrl) || null;
-      remote.pesantren.watermarkDataUrl = (state.pesantren && state.pesantren.watermarkDataUrl) || null;
-    }
-  } else {
+function applyRemoteStatePayload(remote, preserveNav = true, preserveScoreFocus = false) {
+  if (!remote || !state.authUser) return false;
+  if (!remote.pesantren || !remote.pesantren.mediaOmitted) {
     state._mediaStamp = (remote.pesantren && remote.pesantren.mediaStamp) || computeLocalMediaStamp(remote.pesantren);
   }
   state.pesantren = remote.pesantren;
@@ -9149,6 +9216,25 @@ async function refreshStateFromServer(preserveNav = true, preserveScoreFocus = f
     renderPage();
   }
   return true;
+}
+
+async function refreshStateFromServer(preserveNav = true, preserveScoreFocus = false) {
+  const seq = ++_stateFetchSeq;
+  const useOmitMedia = Boolean(state._mediaStamp);
+  let remote = await apiCall('GET', useOmitMedia ? '/api/state?omitMedia=1' : '/api/state');
+  if (seq !== _stateFetchSeq || !state.authUser) return false;
+  if (!remote) return false;
+  if (remote.pesantren && remote.pesantren.mediaOmitted) {
+    if (remote.pesantren.mediaStamp !== state._mediaStamp) {
+      remote = await apiCall('GET', '/api/state');
+      if (seq !== _stateFetchSeq || !state.authUser) return false;
+      if (!remote) return false;
+    } else {
+      remote.pesantren.logoDataUrl = (state.pesantren && state.pesantren.logoDataUrl) || null;
+      remote.pesantren.watermarkDataUrl = (state.pesantren && state.pesantren.watermarkDataUrl) || null;
+    }
+  }
+  return applyRemoteStatePayload(remote, preserveNav, preserveScoreFocus);
 }
 
 async function loadDbState() {
@@ -9273,22 +9359,22 @@ async function initApp() {
     return;
   }
   renderLoadingSkeleton();
-  const me = await apiCall('GET', '/api/me');
-  if (me && me.authenticated) {
-    applyAuthRole(me.user);
-    const ok = await loadDbState();
+  const boot = await apiCall('GET', '/api/bootstrap');
+  if (boot && boot.authenticated && boot.user && boot.state) {
+    applyAuthRole(boot.user);
+    const ok = applyRemoteStatePayload(boot.state, false, false);
     if (ok) {
       closeLogin();
-    } else {
-      clearClientSessionData(false);
-      await loadPublicBranding();
-      showLogin();
+      return;
     }
-  } else {
-    clearClientSessionData(false);
-    await loadPublicBranding();
-    showLogin();
   }
+  clearClientSessionData(false);
+  if (boot && boot.branding) {
+    updateLoginBranding(boot.branding);
+  } else {
+    await loadPublicBranding();
+  }
+  showLogin();
 }
 initApp();
 </script>

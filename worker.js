@@ -645,6 +645,240 @@ function serveStaticAsset(assetResp, contentType, cacheControl) {
   return new Response(assetResp.status === 304 ? null : assetResp.body, { status: assetResp.status, headers });
 }
 
+const STATIC_ASSET_CACHE = 'public, max-age=604800, stale-while-revalidate=86400';
+
+async function buildScopedStateForUser(env, user, opts = {}) {
+  const omitMedia = Boolean(opts && opts.omitMedia);
+  const full = await getFullState(env.DB, { omitMedia });
+  if (user.role === 'siswa') {
+    const hasStudentId = user.studentId !== null && user.studentId !== undefined && user.studentId !== '' && Number.isFinite(Number(user.studentId));
+    const sidNum = hasStudentId ? Number(user.studentId) : null;
+    let myStudent = sidNum ? full.students.find(s => s.id === sidNum) : null;
+    let targetTahun = full.pesantren.tahun;
+    let targetSemester = full.pesantren.semester;
+    let classPool = [];
+    let targetSubjects = full.subjects;
+    let targetAssignments = full.assignments;
+    let myClass = null;
+    let archiveNotice = null;
+
+    if (myStudent) {
+      classPool = full.students.filter(s => s.kelas === myStudent.kelas);
+      myClass = full.classes.find(c => c.kode === myStudent.kelas) || null;
+    } else if (sidNum) {
+      const [curEnr, archEnr] = await env.DB.batch([
+        env.DB.prepare(`
+          SELECT kelas, COALESCE(status, 'aktif') AS status, COALESCE(mutasiCatatan, '') AS mutasiCatatan, COALESCE(mutasiTanggal, '') AS mutasiTanggal
+          FROM student_enrollments WHERE studentId = ? AND tahun = ? AND semester = ?
+        `).bind(sidNum, full.pesantren.tahun, full.pesantren.semester),
+        env.DB.prepare(`
+          SELECT tahun, semester, kelas
+          FROM student_enrollments
+          WHERE studentId = ? AND COALESCE(status, 'aktif') = 'aktif'
+          ORDER BY tahun DESC, CASE WHEN semester = 'Genap' THEN 2 ELSE 1 END DESC
+          LIMIT 1
+        `).bind(sidNum)
+      ]);
+      const curRow = curEnr?.results?.[0] || null;
+      const archRow = archEnr?.results?.[0] || null;
+      if (archRow) {
+        targetTahun = archRow.tahun;
+        targetSemester = archRow.semester;
+        const [archStRes, archScRes, archAttRes, archClsRes, archAsgRes] = await env.DB.batch([
+          env.DB.prepare(`
+            SELECT s.*, e.kelas AS enrKelas
+            FROM student_enrollments e
+            JOIN students s ON s.id = e.studentId
+            WHERE e.tahun = ? AND e.semester = ? AND e.kelas = ? AND COALESCE(e.status, 'aktif') = 'aktif'
+            ORDER BY s.id ASC
+          `).bind(targetTahun, targetSemester, archRow.kelas),
+          env.DB.prepare(`
+            SELECT sc.studentId, sc.subjectId, sc.score
+            FROM scores sc
+            JOIN student_enrollments e ON e.studentId = sc.studentId AND e.tahun = sc.tahun AND e.semester = sc.semester
+            WHERE sc.tahun = ? AND sc.semester = ? AND e.kelas = ? AND COALESCE(e.status, 'aktif') = 'aktif'
+          `).bind(targetTahun, targetSemester, archRow.kelas),
+          env.DB.prepare('SELECT sakit, izin, alpa FROM student_attendance WHERE studentId = ? AND tahun = ? AND semester = ?')
+            .bind(sidNum, targetTahun, targetSemester),
+          env.DB.prepare('SELECT * FROM classes WHERE tahun = ? AND kode = ? LIMIT 1').bind(targetTahun, archRow.kelas),
+          env.DB.prepare('SELECT * FROM assignments WHERE tahun = ? AND kode = ?').bind(targetTahun, archRow.kelas)
+        ]);
+        const archScoreMap = new Map();
+        for (const row of (archScRes?.results || [])) {
+          if (!archScoreMap.has(row.studentId)) archScoreMap.set(row.studentId, {});
+          archScoreMap.get(row.studentId)[row.subjectId] = row.score;
+        }
+        const archAtt = archAttRes?.results?.[0] || null;
+        classPool = (archStRes?.results || []).map(st => {
+          const enrKelas = st.enrKelas;
+          delete st.enrKelas;
+          st.kelas = enrKelas;
+          st.sakit = (st.id === sidNum && archAtt) ? (archAtt.sakit ?? 0) : 0;
+          st.izin = (st.id === sidNum && archAtt) ? (archAtt.izin ?? 0) : 0;
+          st.alpa = (st.id === sidNum && archAtt) ? (archAtt.alpa ?? 0) : 0;
+          st.scores = archScoreMap.get(st.id) || {};
+          return st;
+        });
+        myStudent = classPool.find(s => s.id === sidNum) || null;
+        myClass = archClsRes?.results?.[0] || null;
+        targetAssignments = archAsgRes?.results || [];
+        archiveNotice = {
+          status: (curRow && curRow.status) || 'mutasi_keluar',
+          tahun: full.pesantren.tahun,
+          semester: full.pesantren.semester,
+          archivedTahun: targetTahun,
+          archivedSemester: targetSemester,
+          archivedKelas: archRow.kelas,
+          mutasiTanggal: (curRow && curRow.mutasiTanggal) || '',
+          mutasiCatatan: (curRow && curRow.mutasiCatatan) || ''
+        };
+      }
+    }
+
+    const usedSubIds = new Set();
+    for (const st of classPool) {
+      for (const [k, v] of Object.entries(st.scores || {})) {
+        if (v !== undefined && v !== null && v !== '' && Number.isFinite(Number(v))) usedSubIds.add(Number(k));
+      }
+    }
+    const usedMapelNames = new Set(
+      myStudent ? targetAssignments.filter(a => a.kode === myStudent.kelas).map(a => a.mapel) : []
+    );
+    const effectiveSubjects = targetSubjects.filter(sub => sub.active !== false || usedSubIds.has(sub.id) || usedMapelNames.has(sub.namaArab));
+    const classScoredSubs = effectiveSubjects.filter(sub => usedSubIds.has(sub.id));
+    const classScoredSubjectIds = classScoredSubs.map(sub => sub.id);
+    const classScoredCount = classScoredSubs.length;
+    const classScoredJam = classScoredSubs.reduce((acc, sub) => acc + (Number(sub.jam) || 0), 0);
+    const classUmumSubs = classScoredSubs.filter(sub => sub.kelompok !== 'syari');
+    const classSyariSubs = classScoredSubs.filter(sub => sub.kelompok === 'syari');
+    const classScoredOverride = {
+      classScoredSubjectIds,
+      classScoredCount,
+      classScoredJam,
+      classUmumScoredCount: classUmumSubs.length,
+      classUmumScoredJam: classUmumSubs.reduce((acc, sub) => acc + (Number(sub.jam) || 0), 0),
+      classSyariScoredCount: classSyariSubs.length,
+      classSyariScoredJam: classSyariSubs.reduce((acc, sub) => acc + (Number(sub.jam) || 0), 0)
+    };
+    let scopedStudents = [];
+    if (myStudent) {
+      const totals = classPool.map(s => {
+        let sum = 0;
+        let syariSum = 0;
+        let scoredJam = 0;
+        let scoredCount = 0;
+        let rawSum = 0;
+        for (const sub of effectiveSubjects) {
+          const sc = s.scores[sub.id];
+          const scNum = Number(sc);
+          const jam = Number(sub.jam) || 0;
+          if (sc !== undefined && sc !== null && sc !== '' && Number.isFinite(scNum)) {
+            const weighted = scNum * jam;
+            sum += weighted;
+            scoredJam += jam;
+            scoredCount++;
+            rawSum += scNum;
+            if (sub.kelompok === 'syari') syariSum += weighted;
+          }
+        }
+        const denomJam = classScoredJam > 0 ? classScoredJam : scoredJam;
+        const denomCount = classScoredCount > 0 ? classScoredCount : scoredCount;
+        const avg = scoredCount > 0 ? (denomJam > 0 ? sum / denomJam : (denomCount > 0 ? rawSum / denomCount : 0)) : 0;
+        return { id: s.id, total: sum, syari: syariSum, avg };
+      }).sort((a, b) => (b.total - a.total) || (b.syari - a.syari) || (b.avg - a.avg));
+      const meEntry = totals.find(x => x.id === myStudent.id);
+      const rank = meEntry
+        ? totals.findIndex(x => x.total === meEntry.total && x.syari === meEntry.syari && Math.abs(x.avg - meEntry.avg) < 1e-9) + 1
+        : 1;
+      scopedStudents = [{
+        ...myStudent,
+        classScoredOverride,
+        rankOverride: { rank: rank || 1, totalStudents: classPool.length },
+        ...(archiveNotice ? { archiveNotice } : {})
+      }];
+    }
+    const myWali = (myClass && myClass.waliId) ? full.teachers.find(t => t.id === myClass.waliId) : null;
+    return {
+      pesantren: full.pesantren,
+      bobot: full.bobot,
+      classes: myClass ? [myClass] : [],
+      subjects: effectiveSubjects,
+      teachers: myWali ? [{ id: myWali.id, nama: myWali.nama, namaArab: myWali.namaArab, waliKelas: myWali.waliKelas, active: myWali.active }] : [],
+      assignments: [],
+      students: scopedStudents,
+      mutatedStudents: [],
+      activities: []
+    };
+  }
+  if (user.role === 'guru') {
+    const hasTid = Boolean(user.teacherId);
+    const myTeacher = hasTid ? full.teachers.find(t => t.id === user.teacherId) : null;
+    const waliClassObj = hasTid ? full.classes.find(c => c.waliId && c.waliId === user.teacherId) : null;
+    const waliKelas = (waliClassObj && waliClassObj.kode) || (myTeacher && myTeacher.waliKelas) || null;
+    const myAssignments = hasTid
+      ? full.assignments.filter(a => a.teacherId === user.teacherId || (waliKelas && a.kode === waliKelas))
+      : [];
+    const allowedClasses = new Set(myAssignments.map(a => a.kode));
+    if (waliKelas) allowedClasses.add(waliKelas);
+
+    const subjectIdByMapel = new Map(full.subjects.map(s => [s.namaArab, s.id]));
+    const taughtSubjectsByClass = new Map();
+    for (const a of myAssignments) {
+      if (hasTid && a.teacherId === user.teacherId) {
+        const sid = subjectIdByMapel.get(a.mapel);
+        if (sid !== undefined) {
+          if (!taughtSubjectsByClass.has(a.kode)) taughtSubjectsByClass.set(a.kode, new Set());
+          taughtSubjectsByClass.get(a.kode).add(sid);
+        }
+      }
+    }
+
+    const scopedStudents = full.students
+      .filter(st => allowedClasses.has(st.kelas))
+      .map(st => {
+        if (waliKelas && st.kelas === waliKelas) return st;
+        const allowedSubs = taughtSubjectsByClass.get(st.kelas) || new Set();
+        const filteredScores = {};
+        for (const [k, v] of Object.entries(st.scores || {})) {
+          if (allowedSubs.has(Number(k))) filteredScores[k] = v;
+        }
+        return {
+          id: st.id,
+          nama: st.nama,
+          nis: st.nis,
+          nisn: st.nisn,
+          kelas: st.kelas,
+          jk: st.jk,
+          scores: filteredScores
+        };
+      });
+
+    const scopedTeachers = full.teachers.map(t => ({
+      id: t.id,
+      nama: t.nama,
+      namaArab: t.namaArab,
+      initials: t.initials,
+      role: t.role,
+      nuptk: (hasTid && t.id === user.teacherId) ? t.nuptk : '',
+      waliKelas: t.waliKelas,
+      active: t.active
+    }));
+
+    return {
+      pesantren: full.pesantren,
+      bobot: full.bobot,
+      classes: full.classes.filter(c => allowedClasses.has(c.kode)),
+      subjects: full.subjects,
+      teachers: scopedTeachers,
+      assignments: myAssignments,
+      students: scopedStudents,
+      mutatedStudents: waliKelas ? (full.mutatedStudents || []).filter(s => s.kelas === waliKelas) : [],
+      activities: []
+    };
+  }
+  return full;
+}
+
 async function handleRequest(request, env) {
   const method = request.method || 'GET';
   let pathname = '/';
@@ -668,17 +902,22 @@ async function handleRequest(request, env) {
 
     if (method === 'GET' && (pathname === '/vendor/xlsx.full.min.js' || pathname === '/vendor/tailwindcss.min.js')) {
       const assetResp = await env.ASSETS.fetch(request);
-      return serveStaticAsset(assetResp, 'application/javascript; charset=utf-8', 'public, max-age=86400');
+      return serveStaticAsset(assetResp, 'application/javascript; charset=utf-8', STATIC_ASSET_CACHE);
+    }
+
+    if (method === 'GET' && pathname === '/assets/tailwind.min.css') {
+      const assetResp = await env.ASSETS.fetch(request);
+      return serveStaticAsset(assetResp, 'text/css; charset=utf-8', STATIC_ASSET_CACHE);
     }
 
     if (method === 'GET' && pathname === '/assets/rdp-sidebar-logo.jpg') {
       const assetResp = await env.ASSETS.fetch(request);
-      return serveStaticAsset(assetResp, 'image/jpeg', 'public, max-age=86400');
+      return serveStaticAsset(assetResp, 'image/jpeg', STATIC_ASSET_CACHE);
     }
 
     if (method === 'GET' && pathname === '/assets/rdp-icon.png') {
       const assetResp = await env.ASSETS.fetch(request);
-      return serveStaticAsset(assetResp, 'image/png', 'public, max-age=86400');
+      return serveStaticAsset(assetResp, 'image/png', STATIC_ASSET_CACHE);
     }
 
     // Health check (checks D1 connectivity)
@@ -695,7 +934,7 @@ async function handleRequest(request, env) {
     // Public branding
     if (method === 'GET' && pathname === '/api/public/branding') {
       const p = (await env.DB.prepare('SELECT nama, namaArab, logoDataUrl, tahun, semester FROM pesantren_profile WHERE id = 1').first()) || {};
-      return jsonResponse(200, p);
+      return jsonResponse(200, p, { 'Cache-Control': 'public, max-age=60, stale-while-revalidate=300' });
     }
 
       // Auth: Login
@@ -772,6 +1011,17 @@ async function handleRequest(request, env) {
       if (method === 'GET' && pathname === '/api/me') {
         const user = await getSessionUser(request, env);
         return jsonResponse(200, user ? { authenticated: true, user } : { authenticated: false });
+      }
+
+      // Single-RTT app bootstrap (returns branding if unauthenticated, or user + scoped state if authenticated)
+      if (method === 'GET' && pathname === '/api/bootstrap') {
+        const user = await getSessionUser(request, env);
+        if (user && ['admin', 'guru', 'siswa'].includes(user.role)) {
+          const state = await buildScopedStateForUser(env, user, { omitMedia: false });
+          return jsonResponse(200, { authenticated: true, user, state });
+        }
+        const branding = (await env.DB.prepare('SELECT nama, namaArab, logoDataUrl, tahun, semester FROM pesantren_profile WHERE id = 1').first()) || {};
+        return jsonResponse(200, { authenticated: false, branding });
       }
 
       // Auth: Change own password (rotates session token, with throttling)
@@ -912,234 +1162,8 @@ async function handleRequest(request, env) {
         const { user, error } = await requireRole(request, env, ['admin', 'guru', 'siswa']);
         if (error) return error;
         const omitMedia = url.searchParams.get('omitMedia') === '1';
-        const full = await getFullState(env.DB, { omitMedia });
-        if (user.role === 'siswa') {
-          const hasStudentId = user.studentId !== null && user.studentId !== undefined && user.studentId !== '' && Number.isFinite(Number(user.studentId));
-          const sidNum = hasStudentId ? Number(user.studentId) : null;
-          let myStudent = sidNum ? full.students.find(s => s.id === sidNum) : null;
-          let targetTahun = full.pesantren.tahun;
-          let targetSemester = full.pesantren.semester;
-          let classPool = [];
-          let targetSubjects = full.subjects;
-          let targetAssignments = full.assignments;
-          let myClass = null;
-          let archiveNotice = null;
-
-          if (myStudent) {
-            classPool = full.students.filter(s => s.kelas === myStudent.kelas);
-            myClass = full.classes.find(c => c.kode === myStudent.kelas) || null;
-          } else if (sidNum) {
-            const [curEnr, archEnr] = await env.DB.batch([
-              env.DB.prepare(`
-                SELECT kelas, COALESCE(status, 'aktif') AS status, COALESCE(mutasiCatatan, '') AS mutasiCatatan, COALESCE(mutasiTanggal, '') AS mutasiTanggal
-                FROM student_enrollments WHERE studentId = ? AND tahun = ? AND semester = ?
-              `).bind(sidNum, full.pesantren.tahun, full.pesantren.semester),
-              env.DB.prepare(`
-                SELECT tahun, semester, kelas
-                FROM student_enrollments
-                WHERE studentId = ? AND COALESCE(status, 'aktif') = 'aktif'
-                ORDER BY tahun DESC, CASE WHEN semester = 'Genap' THEN 2 ELSE 1 END DESC
-                LIMIT 1
-              `).bind(sidNum)
-            ]);
-            const curRow = curEnr?.results?.[0] || null;
-            const archRow = archEnr?.results?.[0] || null;
-            if (archRow) {
-              targetTahun = archRow.tahun;
-              targetSemester = archRow.semester;
-              const [archStRes, archScRes, archAttRes, archClsRes, archAsgRes] = await env.DB.batch([
-                env.DB.prepare(`
-                  SELECT s.*, e.kelas AS enrKelas
-                  FROM student_enrollments e
-                  JOIN students s ON s.id = e.studentId
-                  WHERE e.tahun = ? AND e.semester = ? AND e.kelas = ? AND COALESCE(e.status, 'aktif') = 'aktif'
-                  ORDER BY s.id ASC
-                `).bind(targetTahun, targetSemester, archRow.kelas),
-                env.DB.prepare(`
-                  SELECT sc.studentId, sc.subjectId, sc.score
-                  FROM scores sc
-                  JOIN student_enrollments e ON e.studentId = sc.studentId AND e.tahun = sc.tahun AND e.semester = sc.semester
-                  WHERE sc.tahun = ? AND sc.semester = ? AND e.kelas = ? AND COALESCE(e.status, 'aktif') = 'aktif'
-                `).bind(targetTahun, targetSemester, archRow.kelas),
-                env.DB.prepare('SELECT sakit, izin, alpa FROM student_attendance WHERE studentId = ? AND tahun = ? AND semester = ?')
-                  .bind(sidNum, targetTahun, targetSemester),
-                env.DB.prepare('SELECT * FROM classes WHERE tahun = ? AND kode = ? LIMIT 1').bind(targetTahun, archRow.kelas),
-                env.DB.prepare('SELECT * FROM assignments WHERE tahun = ? AND kode = ?').bind(targetTahun, archRow.kelas)
-              ]);
-              const archScoreMap = new Map();
-              for (const row of (archScRes?.results || [])) {
-                if (!archScoreMap.has(row.studentId)) archScoreMap.set(row.studentId, {});
-                archScoreMap.get(row.studentId)[row.subjectId] = row.score;
-              }
-              const archAtt = archAttRes?.results?.[0] || null;
-              classPool = (archStRes?.results || []).map(st => {
-                const enrKelas = st.enrKelas;
-                delete st.enrKelas;
-                st.kelas = enrKelas;
-                st.sakit = (st.id === sidNum && archAtt) ? (archAtt.sakit ?? 0) : 0;
-                st.izin = (st.id === sidNum && archAtt) ? (archAtt.izin ?? 0) : 0;
-                st.alpa = (st.id === sidNum && archAtt) ? (archAtt.alpa ?? 0) : 0;
-                st.scores = archScoreMap.get(st.id) || {};
-                return st;
-              });
-              myStudent = classPool.find(s => s.id === sidNum) || null;
-              myClass = archClsRes?.results?.[0] || null;
-              targetAssignments = archAsgRes?.results || [];
-              archiveNotice = {
-                status: (curRow && curRow.status) || 'mutasi_keluar',
-                tahun: full.pesantren.tahun,
-                semester: full.pesantren.semester,
-                archivedTahun: targetTahun,
-                archivedSemester: targetSemester,
-                archivedKelas: archRow.kelas,
-                mutasiTanggal: (curRow && curRow.mutasiTanggal) || '',
-                mutasiCatatan: (curRow && curRow.mutasiCatatan) || ''
-              };
-            }
-          }
-
-          const usedSubIds = new Set();
-          for (const st of classPool) {
-            for (const [k, v] of Object.entries(st.scores || {})) {
-              if (v !== undefined && v !== null && v !== '' && Number.isFinite(Number(v))) usedSubIds.add(Number(k));
-            }
-          }
-          const usedMapelNames = new Set(
-            myStudent ? targetAssignments.filter(a => a.kode === myStudent.kelas).map(a => a.mapel) : []
-          );
-          const effectiveSubjects = targetSubjects.filter(sub => sub.active !== false || usedSubIds.has(sub.id) || usedMapelNames.has(sub.namaArab));
-          const classScoredSubs = effectiveSubjects.filter(sub => usedSubIds.has(sub.id));
-          const classScoredSubjectIds = classScoredSubs.map(sub => sub.id);
-          const classScoredCount = classScoredSubs.length;
-          const classScoredJam = classScoredSubs.reduce((acc, sub) => acc + (Number(sub.jam) || 0), 0);
-          const classUmumSubs = classScoredSubs.filter(sub => sub.kelompok !== 'syari');
-          const classSyariSubs = classScoredSubs.filter(sub => sub.kelompok === 'syari');
-          const classScoredOverride = {
-            classScoredSubjectIds,
-            classScoredCount,
-            classScoredJam,
-            classUmumScoredCount: classUmumSubs.length,
-            classUmumScoredJam: classUmumSubs.reduce((acc, sub) => acc + (Number(sub.jam) || 0), 0),
-            classSyariScoredCount: classSyariSubs.length,
-            classSyariScoredJam: classSyariSubs.reduce((acc, sub) => acc + (Number(sub.jam) || 0), 0)
-          };
-          let scopedStudents = [];
-          if (myStudent) {
-            const totals = classPool.map(s => {
-              let sum = 0;
-              let syariSum = 0;
-              let scoredJam = 0;
-              let scoredCount = 0;
-              let rawSum = 0;
-              for (const sub of effectiveSubjects) {
-                const sc = s.scores[sub.id];
-                const scNum = Number(sc);
-                const jam = Number(sub.jam) || 0;
-                if (sc !== undefined && sc !== null && sc !== '' && Number.isFinite(scNum)) {
-                  const weighted = scNum * jam;
-                  sum += weighted;
-                  scoredJam += jam;
-                  scoredCount++;
-                  rawSum += scNum;
-                  if (sub.kelompok === 'syari') syariSum += weighted;
-                }
-              }
-              const denomJam = classScoredJam > 0 ? classScoredJam : scoredJam;
-              const denomCount = classScoredCount > 0 ? classScoredCount : scoredCount;
-              const avg = scoredCount > 0 ? (denomJam > 0 ? sum / denomJam : (denomCount > 0 ? rawSum / denomCount : 0)) : 0;
-              return { id: s.id, total: sum, syari: syariSum, avg };
-            }).sort((a, b) => (b.total - a.total) || (b.syari - a.syari) || (b.avg - a.avg));
-            const meEntry = totals.find(x => x.id === myStudent.id);
-            const rank = meEntry
-              ? totals.findIndex(x => x.total === meEntry.total && x.syari === meEntry.syari && Math.abs(x.avg - meEntry.avg) < 1e-9) + 1
-              : 1;
-            scopedStudents = [{
-              ...myStudent,
-              classScoredOverride,
-              rankOverride: { rank: rank || 1, totalStudents: classPool.length },
-              ...(archiveNotice ? { archiveNotice } : {})
-            }];
-          }
-          const myWali = (myClass && myClass.waliId) ? full.teachers.find(t => t.id === myClass.waliId) : null;
-          return jsonResponse(200, {
-            pesantren: full.pesantren,
-            bobot: full.bobot,
-            classes: myClass ? [myClass] : [],
-            subjects: effectiveSubjects,
-            teachers: myWali ? [{ id: myWali.id, nama: myWali.nama, namaArab: myWali.namaArab, waliKelas: myWali.waliKelas, active: myWali.active }] : [],
-            assignments: [],
-            students: scopedStudents,
-            mutatedStudents: [],
-            activities: []
-          });
-        }
-        if (user.role === 'guru') {
-          const hasTid = Boolean(user.teacherId);
-          const myTeacher = hasTid ? full.teachers.find(t => t.id === user.teacherId) : null;
-          const waliClassObj = hasTid ? full.classes.find(c => c.waliId && c.waliId === user.teacherId) : null;
-          const waliKelas = (waliClassObj && waliClassObj.kode) || (myTeacher && myTeacher.waliKelas) || null;
-          const myAssignments = hasTid
-            ? full.assignments.filter(a => a.teacherId === user.teacherId || (waliKelas && a.kode === waliKelas))
-            : [];
-          const allowedClasses = new Set(myAssignments.map(a => a.kode));
-          if (waliKelas) allowedClasses.add(waliKelas);
-
-          const subjectIdByMapel = new Map(full.subjects.map(s => [s.namaArab, s.id]));
-          const taughtSubjectsByClass = new Map();
-          for (const a of myAssignments) {
-            if (hasTid && a.teacherId === user.teacherId) {
-              const sid = subjectIdByMapel.get(a.mapel);
-              if (sid !== undefined) {
-                if (!taughtSubjectsByClass.has(a.kode)) taughtSubjectsByClass.set(a.kode, new Set());
-                taughtSubjectsByClass.get(a.kode).add(sid);
-              }
-            }
-          }
-
-          const scopedStudents = full.students
-            .filter(st => allowedClasses.has(st.kelas))
-            .map(st => {
-              if (waliKelas && st.kelas === waliKelas) return st;
-              const allowedSubs = taughtSubjectsByClass.get(st.kelas) || new Set();
-              const filteredScores = {};
-              for (const [k, v] of Object.entries(st.scores || {})) {
-                if (allowedSubs.has(Number(k))) filteredScores[k] = v;
-              }
-              return {
-                id: st.id,
-                nama: st.nama,
-                nis: st.nis,
-                nisn: st.nisn,
-                kelas: st.kelas,
-                jk: st.jk,
-                scores: filteredScores
-              };
-            });
-
-          const scopedTeachers = full.teachers.map(t => ({
-            id: t.id,
-            nama: t.nama,
-            namaArab: t.namaArab,
-            initials: t.initials,
-            role: t.role,
-            nuptk: (hasTid && t.id === user.teacherId) ? t.nuptk : '',
-            waliKelas: t.waliKelas,
-            active: t.active
-          }));
-
-          return jsonResponse(200, {
-            pesantren: full.pesantren,
-            bobot: full.bobot,
-            classes: full.classes.filter(c => allowedClasses.has(c.kode)),
-            subjects: full.subjects,
-            teachers: scopedTeachers,
-            assignments: myAssignments,
-            students: scopedStudents,
-            mutatedStudents: waliKelas ? (full.mutatedStudents || []).filter(s => s.kelas === waliKelas) : [],
-            activities: []
-          });
-        }
-        return jsonResponse(200, full);
+        const state = await buildScopedStateForUser(env, user, { omitMedia });
+        return jsonResponse(200, state);
       }
 
       // Backup database as SQL dump (D1 compatible — NO BEGIN/COMMIT; chunked lines < 80 KB; excludes sessions)

@@ -4,7 +4,8 @@
   "description": "Rapor Digital Pesantren (RDP) with Node.js + SQLite",
   "main": "server.js",
   "scripts": {
-    "start": "node --no-warnings server.js"
+    "start": "node --no-warnings server.js",
+    "build:css": "npx --yes tailwindcss@3.4.17 -c tailwind.config.js -i tailwind.input.css -o public/assets/tailwind.min.css --minify"
   },
   "dependencies": {
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"

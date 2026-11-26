@@ -108,6 +108,81 @@ async function downloadDatabaseBackup() {
   }
 }
 
+function getAdminWaPreviewHtml(rawVal) {
+  const digits = normalizeWhatsAppNumber(rawVal);
+  const waUrl = buildOperatorWhatsappUrl(rawVal, state.pesantren && state.pesantren.nama);
+  if (waUrl) {
+    return `
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <div class="min-w-0">
+          <div class="font-semibold text-[#0f4c3a]">Tautan WhatsApp Aktif (+${escapeHtml(digits)})</div>
+          <div class="text-[11px] text-slate-600 truncate max-w-md">${escapeHtml(waUrl)}</div>
+        </div>
+        <a href="${escapeHtml(waUrl)}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#136048] bg-white hover:bg-emerald-50 text-[#0f4c3a] font-bold transition whitespace-nowrap">
+          Tes Buka WhatsApp ↗
+        </a>
+      </div>
+    `;
+  }
+  if (digits) {
+    return `<div class="text-rose-700 font-semibold">Format belum valid (${digits.length} digit) — gunakan 8–15 digit angka, contoh 081234567890 atau 6281234567890.</div>`;
+  }
+  return `<div class="text-slate-500">Nomor belum diatur. Tombol <strong>Hubungi Operator</strong> pada halaman login akan menampilkan pesan informasi standar.</div>`;
+}
+
+function updateAdminWaPreview() {
+  const inp = document.getElementById('admin-wa-input');
+  const box = document.getElementById('admin-wa-preview');
+  if (!inp || !box) return;
+  box.innerHTML = getAdminWaPreviewHtml(inp.value);
+}
+
+async function saveAdminInfoFromForm(e) {
+  if (e) e.preventDefault();
+  const inp = document.getElementById('admin-wa-input');
+  const raw = inp ? inp.value : '';
+  const normalized = normalizeWhatsAppNumber(raw);
+  if (normalized && !/^[0-9]{8,15}$/.test(normalized)) {
+    showToast('Nomor WhatsApp admin harus 8–15 digit (contoh: 081234567890)');
+    if (inp) inp.focus();
+    return;
+  }
+  const res = await savePesantrenPartial({ adminWhatsapp: normalized });
+  if (res && res.ok) {
+    state.pesantren.adminWhatsapp = normalized;
+    markFormDirty('info-admin', false);
+    updateLoginBranding(state.pesantren);
+    renderPage();
+    showToast('Informasi Admin berhasil disimpan');
+  } else {
+    await refreshStateFromServer(true);
+  }
+}
+
+function renderInformasiAdmin() {
+  const curWa = (state.pesantren && state.pesantren.adminWhatsapp) || '';
+  return `
+    ${renderPageHeader('Informasi Admin', 'Atur nomor WhatsApp admin/operator pesantren yang tertaut ke tombol Hubungi Operator pada halaman login.', renderDirtyBadge('info-admin'))}
+    <form onsubmit="saveAdminInfoFromForm(event)" class="rdp-card p-5 max-w-xl space-y-4 text-xs">
+      <div>
+        <label for="admin-wa-input" class="block font-bold text-[#0f4c3a] mb-1">Nomor WhatsApp Admin / Operator</label>
+        <input id="admin-wa-input" type="tel" inputmode="tel" value="${escapeHtml(curWa)}" placeholder="Contoh: 081234567890 atau 6281234567890" oninput="markFormDirty('info-admin', true); updateAdminWaPreview();" class="w-full px-3 py-2.5 rounded-lg border border-[#e7dcc3] bg-white text-sm text-[#0f4c3a] focus:outline-none focus:ring-2 focus:ring-[#c9a227] focus:border-[#c9a227]" />
+        <p class="text-[11px] text-slate-500 mt-1.5 leading-relaxed">
+          Awalan <code>08…</code> otomatis dikonversi ke format internasional <code>628…</code> saat disimpan. Kosongkan jika ingin menonaktifkan tautan WhatsApp di halaman login.
+        </p>
+      </div>
+      <div id="admin-wa-preview" class="rounded-lg border border-[#e7dcc3] bg-[#fbf8f1] p-3 text-xs">
+        ${getAdminWaPreviewHtml(curWa)}
+      </div>
+      <div class="flex flex-wrap items-center gap-2 pt-1">
+        <button type="submit" class="min-h-[40px] inline-flex items-center px-4 py-2 rounded-lg bg-[#0f4c3a] hover:bg-[#0b3b2e] text-[#f3e3b0] border-b-2 border-[#c9a227] font-bold shadow-sm transition">
+          Simpan Informasi Admin
+        </button>
+      </div>
+    </form>
+  `;
+}
+
 function renderBackup() {
   return `
     ${renderPageHeader('Backup Database', 'Unduh salinan lengkap database aplikasi (tanpa token sesi aktif) untuk arsip keamanan.')}

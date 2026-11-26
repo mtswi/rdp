@@ -104,7 +104,7 @@ const state = {
   page: 'dashboard',
   sidebarCollapsedDesktop: false,
   sidebarOpenMobile: false,
-  openGroups: { lembaga: true, guru: true, siswa: true, rapor: true, kelas_menu: true, walikelas: true },
+  openGroups: { lembaga: true, guru: true, siswa: true, rapor: true, kelas_menu: true, walikelas: true, admin_menu: true },
   selectedKelasMengajar: 'IX.B',
   selectedMapelMengajar: 'الرياضيات',
   selectedStudentId: 1,
@@ -155,7 +155,8 @@ const state = {
     watermarkSize: 300,
     watermarkFontSize: 24,
     nomorSkKejuaraan: '',
-    predikatConfig: null
+    predikatConfig: null,
+    adminWhatsapp: ''
   },
 
   classes: [],
@@ -377,6 +378,24 @@ function escapeHtml(val) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+function normalizeWhatsAppNumber(raw) {
+  let s = String(raw || '').trim().replace(/[^\d+]/g, '');
+  if (!s) return '';
+  if (s.startsWith('+')) s = s.slice(1);
+  s = s.replace(/\D/g, '');
+  if (!s) return '';
+  if (s.startsWith('0')) s = '62' + s.slice(1);
+  return s;
+}
+
+function buildOperatorWhatsappUrl(waRaw, pesantrenNama) {
+  const digits = normalizeWhatsAppNumber(waRaw);
+  if (!/^[0-9]{8,15}$/.test(digits)) return '';
+  const nama = String(pesantrenNama || (state.pesantren && state.pesantren.nama) || 'RDP Pesantren').trim();
+  const msg = `Assalamu'alaikum Admin ${nama}, saya mengalami kendala masuk akun RDP.`;
+  return `https://wa.me/${digits}?text=${encodeURIComponent(msg)}`;
 }
 
 function togglePasswordVisibility(inputId, btn) {

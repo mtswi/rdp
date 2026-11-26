@@ -49,6 +49,16 @@ function roleToActivityLevel(role) {
   return 'Guru';
 }
 
+function normalizeWhatsAppNumber(raw) {
+  let s = String(raw ?? '').trim().replace(/[^\d+]/g, '');
+  if (!s) return '';
+  if (s.startsWith('+')) s = s.slice(1);
+  s = s.replace(/\D/g, '');
+  if (!s) return '';
+  if (s.startsWith('0')) s = '62' + s.slice(1);
+  return s;
+}
+
 function logActivity(userLike, activityText) {
   try {
     const actor = String((userLike && (userLike.displayName || userLike.username)) || 'Sistem').trim().slice(0, 120) || 'Sistem';
@@ -740,7 +750,7 @@ const server = http.createServer(async (req, res) => {
 
     // Public branding (for login screen, no auth required)
     if (method === 'GET' && pathname === '/api/public/branding') {
-      const p = db.prepare('SELECT nama, namaArab, logoDataUrl, tahun, semester FROM pesantren_profile WHERE id = 1').get() || {};
+      const p = db.prepare('SELECT nama, namaArab, logoDataUrl, tahun, semester, adminWhatsapp FROM pesantren_profile WHERE id = 1').get() || {};
       return sendJson(res, 200, p, { 'Cache-Control': 'public, max-age=60, stale-while-revalidate=300' });
     }
 
@@ -820,7 +830,7 @@ const server = http.createServer(async (req, res) => {
         const state = buildScopedStateForUser(user, { omitMedia: false });
         return sendJson(res, 200, { authenticated: true, user, state });
       }
-      const branding = db.prepare('SELECT nama, namaArab, logoDataUrl, tahun, semester FROM pesantren_profile WHERE id = 1').get() || {};
+      const branding = db.prepare('SELECT nama, namaArab, logoDataUrl, tahun, semester, adminWhatsapp FROM pesantren_profile WHERE id = 1').get() || {};
       return sendJson(res, 200, { authenticated: false, branding });
     }
 
@@ -1005,7 +1015,7 @@ const server = http.createServer(async (req, res) => {
         'kepala', 'kepalaArab', 'tahun', 'semester', 'semesterArab', 'kurikulum',
         'kkmDefault', 'logoDataUrl', 'tanggalIso', 'watermarkType', 'watermarkText',
         'watermarkDataUrl', 'watermarkOpacity', 'watermarkColor', 'watermarkSize',
-        'watermarkFontSize', 'nomorSkKejuaraan', 'predikatConfig'
+        'watermarkFontSize', 'nomorSkKejuaraan', 'predikatConfig', 'adminWhatsapp'
       ];
       for (const imgField of ['logoDataUrl', 'watermarkDataUrl']) {
         if (Object.prototype.hasOwnProperty.call(body, imgField) && body[imgField] !== null && body[imgField] !== '') {
@@ -1115,6 +1125,15 @@ const server = http.createServer(async (req, res) => {
             }
             sets.push('watermarkOpacity = ?');
             vals.push(op);
+            continue;
+          }
+          if (key === 'adminWhatsapp') {
+            const normalizedWa = normalizeWhatsAppNumber(rawVal);
+            if (normalizedWa && !/^[0-9]{8,15}$/.test(normalizedWa)) {
+              return sendJson(res, 400, { error: 'Nomor WhatsApp admin tidak valid (gunakan 8–15 digit, contoh: 081234567890 atau 6281234567890)' });
+            }
+            sets.push('adminWhatsapp = ?');
+            vals.push(normalizedWa);
             continue;
           }
           sets.push(`${key} = ?`);

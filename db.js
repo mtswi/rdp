@@ -230,7 +230,8 @@ for (const colDef of [
   "watermarkSize INTEGER DEFAULT 300",
   "watermarkFontSize INTEGER DEFAULT 24",
   "nomorSkKejuaraan TEXT DEFAULT '001/SK-KEJ/PP-WI/XII/2025'",
-  "predikatConfig TEXT"
+  "predikatConfig TEXT",
+  "adminWhatsapp TEXT DEFAULT ''"
 ]) {
   try { db.exec(`ALTER TABLE pesantren_profile ADD COLUMN ${colDef};`); } catch (_) {}
 }
@@ -703,7 +704,7 @@ function getFullState(opts = {}) {
               kepala, kepalaArab, tahun, semester, semesterArab, kurikulum,
               kkmDefault, tanggalIso, watermarkType, watermarkText,
               watermarkOpacity, watermarkColor, watermarkSize, watermarkFontSize,
-              nomorSkKejuaraan, predikatConfig,
+              nomorSkKejuaraan, predikatConfig, adminWhatsapp,
               (length(COALESCE(logoDataUrl, '')) || ':' || substr(COALESCE(logoDataUrl, ''), 1, 24) || ':' ||
                length(COALESCE(watermarkDataUrl, '')) || ':' || substr(COALESCE(watermarkDataUrl, ''), 1, 24)) AS mediaStamp
        FROM pesantren_profile WHERE id = 1`
@@ -820,6 +821,7 @@ function getFullState(opts = {}) {
       watermarkFontSize: Number(profile.watermarkFontSize || 24),
       nomorSkKejuaraan: profile.nomorSkKejuaraan || '001/SK-KEJ/PP-WI/XII/2025',
       predikatConfig: effectivePredikatConfig,
+      adminWhatsapp: profile.adminWhatsapp || '',
       mediaStamp,
       mediaOmitted: omitMedia
     },

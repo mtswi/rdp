@@ -835,6 +835,9 @@
       font-size: 13px;
     }
     .rdp-login-help-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
       background: transparent;
       border: 0;
       padding: 4px 2px;
@@ -843,6 +846,7 @@
       font: 700 13px/1.4 inherit;
       text-decoration: none;
     }
+    .rdp-login-help-btn.hidden { display: none !important; }
     .rdp-login-help-btn:hover { text-decoration: underline; }
     .rdp-login-divider {
       display: flex;

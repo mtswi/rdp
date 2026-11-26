@@ -324,6 +324,23 @@ function updateLoginBranding(p) {
   if (tahunSpan && p.tahun) tahunSpan.textContent = p.tahun;
   const semSpan = document.getElementById('login-period-semester');
   if (semSpan && p.semester) semSpan.textContent = p.semester;
+  const opLink = document.getElementById('login-operator-link');
+  const opBtn = document.getElementById('login-operator-btn');
+  if (opLink && opBtn) {
+    const waUrl = typeof buildOperatorWhatsappUrl === 'function' ? buildOperatorWhatsappUrl(p.adminWhatsapp, p.nama) : '';
+    if (waUrl) {
+      const digits = normalizeWhatsAppNumber(p.adminWhatsapp);
+      opLink.href = waUrl;
+      opLink.title = `Hubungi Operator via WhatsApp (+${digits})`;
+      opLink.classList.remove('hidden');
+      opBtn.classList.add('hidden');
+    } else {
+      opLink.removeAttribute('href');
+      opLink.removeAttribute('title');
+      opLink.classList.add('hidden');
+      opBtn.classList.remove('hidden');
+    }
+  }
 }
 
 async function loadPublicBranding() {

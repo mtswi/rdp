@@ -15,7 +15,7 @@
   <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Noto+Naskh+Arabic:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" onload="this.onload=null;this.rel='stylesheet'" />
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Noto+Naskh+Arabic:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" /></noscript>
   <link rel="stylesheet" href="/assets/tailwind.min.css?v=1" onerror="var s=document.createElement('script');s.src='/vendor/tailwindcss.min.js';s.onerror=function(){var c=document.createElement('script');c.src='https://cdn.tailwindcss.com';document.head.appendChild(c);};document.head.appendChild(s);" />
-  <link rel="stylesheet" href="/assets/app.css?v=4.0.1" />
+  <link rel="stylesheet" href="/assets/app.css?v=4.0.2" />
 </head>
 <body class="bg-[#f7f3ea] text-[#0f4c3a] antialiased min-h-screen flex flex-col">
   <a href="#main-content" class="rdp-skip-link no-print">Lewati ke konten utama</a>
@@ -157,7 +157,8 @@
             </button>
             <div class="rdp-login-help">
               <span>Kesulitan masuk?</span>
-              <button type="button" class="rdp-login-help-btn" onclick="showToast('Hubungi Operator Pesantren untuk reset password', 'info')">Hubungi Operator</button>
+              <a id="login-operator-link" href="#" target="_blank" rel="noopener noreferrer" class="rdp-login-help-btn hidden">Hubungi Operator</a>
+              <button id="login-operator-btn" type="button" class="rdp-login-help-btn" onclick="showToast('Hubungi Operator Pesantren untuk reset password', 'info')">Hubungi Operator</button>
             </div>
           </form>
 
@@ -338,15 +339,15 @@
     <nav id="mobile-bottom-nav" aria-label="Navigasi cepat mobile" class="no-print md:hidden fixed bottom-0 inset-x-0 z-30 bg-[#0b3b2e] text-white/85 border-t-2 border-[#c9a227] shadow-2xl" style="padding-bottom: env(safe-area-inset-bottom, 0px);"></nav>
   </div>
 
-  <script defer src="/js/core.js?v=4.0.1"></script>
-  <script defer src="/js/layout.js?v=4.0.1"></script>
-  <script defer src="/js/dashboard.js?v=4.0.1"></script>
-  <script defer src="/js/master-data.js?v=4.0.1"></script>
-  <script defer src="/js/students.js?v=4.0.1"></script>
-  <script defer src="/js/grading.js?v=4.0.1"></script>
-  <script defer src="/js/rapor.js?v=4.0.1"></script>
-  <script defer src="/js/export.js?v=4.0.1"></script>
-  <script defer src="/js/kejuaraan.js?v=4.0.1"></script>
-  <script defer src="/js/admin-portal.js?v=4.0.1"></script>
+  <script defer src="/js/core.js?v=4.0.2"></script>
+  <script defer src="/js/layout.js?v=4.0.2"></script>
+  <script defer src="/js/dashboard.js?v=4.0.2"></script>
+  <script defer src="/js/master-data.js?v=4.0.2"></script>
+  <script defer src="/js/students.js?v=4.0.2"></script>
+  <script defer src="/js/grading.js?v=4.0.2"></script>
+  <script defer src="/js/rapor.js?v=4.0.2"></script>
+  <script defer src="/js/export.js?v=4.0.2"></script>
+  <script defer src="/js/kejuaraan.js?v=4.0.2"></script>
+  <script defer src="/js/admin-portal.js?v=4.0.2"></script>
 </body>
 </html>

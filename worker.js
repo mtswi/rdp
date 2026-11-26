@@ -201,6 +201,16 @@ function isValidNisn(val) {
   return s.length >= 4 && s.length <= 30 && s !== '-' && !/^0+$/.test(s) && /^[A-Za-z0-9._-]+$/.test(s);
 }
 
+function normalizeWhatsAppNumber(raw) {
+  let s = String(raw ?? '').trim().replace(/[^\d+]/g, '');
+  if (!s) return '';
+  if (s.startsWith('+')) s = s.slice(1);
+  s = s.replace(/\D/g, '');
+  if (!s) return '';
+  if (s.startsWith('0')) s = '62' + s.slice(1);
+  return s;
+}
+
 function parseScoreValue(raw) {
   if (raw === null || raw === undefined || raw === '') return { empty: true };
   if (typeof raw === 'boolean' || typeof raw === 'object') return { invalid: true };
@@ -423,7 +433,7 @@ async function getFullState(db, opts = {}) {
               kepala, kepalaArab, tahun, semester, semesterArab, kurikulum,
               kkmDefault, tanggalIso, watermarkType, watermarkText,
               watermarkOpacity, watermarkColor, watermarkSize, watermarkFontSize,
-              nomorSkKejuaraan, predikatConfig,
+              nomorSkKejuaraan, predikatConfig, adminWhatsapp,
               (length(COALESCE(logoDataUrl, '')) || ':' || substr(COALESCE(logoDataUrl, ''), 1, 24) || ':' ||
                length(COALESCE(watermarkDataUrl, '')) || ':' || substr(COALESCE(watermarkDataUrl, ''), 1, 24)) AS mediaStamp
        FROM pesantren_profile WHERE id = 1`
@@ -564,6 +574,7 @@ async function getFullState(db, opts = {}) {
       watermarkFontSize: Number(p.watermarkFontSize || 24),
       nomorSkKejuaraan: p.nomorSkKejuaraan || '001/SK-KEJ/PP-WI/XII/2025',
       predikatConfig: effectivePredikatConfig,
+      adminWhatsapp: p.adminWhatsapp || '',
       mediaStamp,
       mediaOmitted: omitMedia
     },
@@ -953,7 +964,7 @@ async function handleRequest(request, env) {
 
     // Public branding
     if (method === 'GET' && pathname === '/api/public/branding') {
-      const p = (await env.DB.prepare('SELECT nama, namaArab, logoDataUrl, tahun, semester FROM pesantren_profile WHERE id = 1').first()) || {};
+      const p = (await env.DB.prepare('SELECT nama, namaArab, logoDataUrl, tahun, semester, adminWhatsapp FROM pesantren_profile WHERE id = 1').first()) || {};
       return jsonResponse(200, p, { 'Cache-Control': 'public, max-age=60, stale-while-revalidate=300' });
     }
 
@@ -1040,7 +1051,7 @@ async function handleRequest(request, env) {
           const state = await buildScopedStateForUser(env, user, { omitMedia: false });
           return jsonResponse(200, { authenticated: true, user, state });
         }
-        const branding = (await env.DB.prepare('SELECT nama, namaArab, logoDataUrl, tahun, semester FROM pesantren_profile WHERE id = 1').first()) || {};
+        const branding = (await env.DB.prepare('SELECT nama, namaArab, logoDataUrl, tahun, semester, adminWhatsapp FROM pesantren_profile WHERE id = 1').first()) || {};
         return jsonResponse(200, { authenticated: false, branding });
       }
 
@@ -1220,7 +1231,7 @@ async function handleRequest(request, env) {
           'kepala', 'kepalaArab', 'tahun', 'semester', 'semesterArab', 'kurikulum',
           'kkmDefault', 'logoDataUrl', 'tanggalIso', 'watermarkType', 'watermarkText',
           'watermarkDataUrl', 'watermarkOpacity', 'watermarkColor', 'watermarkSize',
-          'watermarkFontSize', 'nomorSkKejuaraan', 'predikatConfig'
+          'watermarkFontSize', 'nomorSkKejuaraan', 'predikatConfig', 'adminWhatsapp'
         ];
         for (const imgField of ['logoDataUrl', 'watermarkDataUrl']) {
           if (Object.prototype.hasOwnProperty.call(body, imgField) && body[imgField] !== null && body[imgField] !== '') {
@@ -1330,6 +1341,15 @@ async function handleRequest(request, env) {
               }
               sets.push('watermarkOpacity = ?');
               vals.push(op);
+              continue;
+            }
+            if (key === 'adminWhatsapp') {
+              const normalizedWa = normalizeWhatsAppNumber(rawVal);
+              if (normalizedWa && !/^[0-9]{8,15}$/.test(normalizedWa)) {
+                return jsonResponse(400, { error: 'Nomor WhatsApp admin tidak valid (gunakan 8–15 digit, contoh: 081234567890 atau 6281234567890)' });
+              }
+              sets.push('adminWhatsapp = ?');
+              vals.push(normalizedWa);
               continue;
             }
             sets.push(`${key} = ?`);

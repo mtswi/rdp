@@ -49,7 +49,8 @@ const svgIcons = {
   logout: '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>',
   cls: '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>',
   menu: '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>',
-  key: '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>'
+  key: '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>',
+  shield: '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>'
 };
 
 function renderMobileBottomNav() {
@@ -135,7 +136,10 @@ function renderSidebar() {
         { label: 'Kejuaraan', page: 'kejuaraan' },
         { label: 'Status Nilai', page: 'status-nilai' }
       ])}
-      ${navItem('Backup Restore', 'backup', svgIcons.db, state.page === 'backup')}
+      ${navGroup('admin_menu', 'Admin', svgIcons.shield, [
+        { label: 'Informasi Admin', page: 'info-admin' },
+        { label: 'Backup Database', page: 'backup' }
+      ])}
       <div class="mt-2 pt-2 border-t border-white/10">
         <button onclick="logoutUser()" title="Logout" class="sidebar-item-btn w-full flex items-center gap-3 px-4 py-2.5 text-white/75 hover:bg-white/5 hover:text-white transition">
           <span class="w-4 h-4 flex-shrink-0 opacity-80">${svgIcons.logout}</span><span class="sidebar-text">Logout</span>
@@ -248,7 +252,8 @@ const PAGE_META = {
   legger: { title: 'Ledger Excel' },
   kejuaraan: { title: 'Kejuaraan & SK' },
   'status-nilai': { title: 'Status Pengumpulan Nilai' },
-  backup: { title: 'Backup & Restore' },
+  'info-admin': { title: 'Informasi Admin' },
+  backup: { title: 'Backup Database' },
   'siswa-dashboard': { title: 'Beranda Santri' },
   'siswa-rapor': { title: 'Rapor Saya' },
   'siswa-profil': { title: 'Cek Data Diri' },
@@ -300,6 +305,7 @@ function renderPage() {
   else if (state.page === 'legger') el.innerHTML = renderLeggerPage();
   else if (state.page === 'kejuaraan') el.innerHTML = renderKejuaraanPage();
   else if (state.page === 'status-nilai') el.innerHTML = renderStatusNilai();
+  else if (state.page === 'info-admin') el.innerHTML = renderInformasiAdmin();
   else if (state.page === 'backup') el.innerHTML = renderBackup();
   else el.innerHTML = `<div class="bg-white rounded border border-[#e7dcc3] p-6 text-xs"><h2 class="font-bold text-sm mb-2 capitalize">${escapeHtml(state.page)}</h2><button onclick="navigate('dashboard')" class="px-3 py-1.5 rounded bg-[#136048] text-white font-semibold">Kembali ke Dashboard</button></div>`;
 }
